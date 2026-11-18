@@ -10,7 +10,7 @@ inputs:
     description: Path to the lcov file
     required: true
   junit-file:
-    description: Path to a JUnit XML test report, adds tests, failed test details and execution time
+    description: Path to a JUnit XML test report, adds the tests table with execution time and the failed test annotations
     default: ''
   baseline-file:
     description: Path to a baseline lcov file, overrides the automatic baseline

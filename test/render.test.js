@@ -126,25 +126,15 @@ const tests = {
   ],
 };
 
-test('markdown shows tests and failure details after the coverage sections', () => {
+test('markdown shows the tests table after the coverage sections', () => {
   const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests, reportUrl: 'https://x/r', commit: { sha: 'abcdef1', url: 'u' } });
   assert.match(body, /#### 🧪 Tests/);
   assert.match(body, /\| 6 \| 3 \| 1 \| 1 \| 1 \| 1m 5\.3s \|/);
-  assert.match(body, /<details open><summary>❌ Failed tests \(2\)<\/summary>/);
-  assert.match(body, /- \*\*bad\*\* \(suite\)\n\n```\nexpected '''x''' to equal y\n```/);
-  assert.match(body, /- \*\*broken\*\*\n/);
-  assert.doesNotMatch(body, /Slowest/);
+  assert.doesNotMatch(body, /Failed tests|boom|```/);
   const at = (text) => body.indexOf(text);
   assert.ok(at('All files') < at('#### 🧪 Tests'));
   assert.ok(at('#### 🧪 Tests') < at('Full HTML report'));
   assert.ok(at('Full HTML report') < at('Commit ['));
-});
-
-test('markdown omits the failure section when nothing failed', () => {
-  const clean = { ...tests, cases: [{ name: 'a', classname: '', time: 1, status: 'passed', message: '' }] };
-  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests: clean });
-  assert.match(body, /#### 🧪 Tests/);
-  assert.doesNotMatch(body, /Failed tests/);
   assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null }), /Tests/);
 });
 

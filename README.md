@@ -27,7 +27,7 @@ steps:
 | --- | --- | --- |
 | `lcov-file` | required | Path to the lcov file |
 | `baseline-file` | `''` | lcov file from the base branch, enables deltas |
-| `junit-file` | `''` | JUnit XML test report; adds the tests table (counts and execution time) and failed test details |
+| `junit-file` | `''` | JUnit XML test report; adds the tests table (counts and execution time); failed tests become annotations |
 | `title` | `Coverage Report` | Comment and report title |
 | `thresholds` | `90,70` | Green and yellow cutoffs in percent, they drive the tier emojis and the badge color |
 | `expand-changed-files` | `true` | Start the changed files section of the comment expanded; `false` starts it collapsed |

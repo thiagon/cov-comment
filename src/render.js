@@ -7,8 +7,6 @@ export const DEFAULT_THRESHOLDS = [90, 70];
 
 const MAX_FILES = 100;
 const TIER_EMOJI = { brightgreen: '🟢', yellow: '🟡', red: '🔴' };
-const MAX_FAILED = 20;
-const MAX_MESSAGE = 500;
 
 export const tier = (pct, [green, yellow] = DEFAULT_THRESHOLDS) => (pct >= green ? 'brightgreen' : pct >= yellow ? 'yellow' : 'red');
 
@@ -64,11 +62,9 @@ function fileTable(rows, basePaths, thresholds, blobUrl) {
   return ['| File | Stmts | Miss | Before | After | Δ | Missing |', '| --- | --- | --- | --- | --- | --- | --- |', ...body];
 }
 
-const FAILED = new Set(['failure', 'error']);
-
 function testsSection(tests) {
   const passed = tests.tests - tests.failures - tests.errors - tests.skipped;
-  const out = [
+  return [
     '',
     '#### 🧪 Tests',
     '',
@@ -76,19 +72,6 @@ function testsSection(tests) {
     '| --- | --- | --- | --- | --- | --- |',
     `| ${tests.tests} | ${passed} | ${tests.skipped} | ${tests.failures} | ${tests.errors} | ${formatTime(tests.time)} |`,
   ];
-
-  const failed = tests.cases.filter((item) => FAILED.has(item.status));
-  if (failed.length) {
-    out.push('', `<details open><summary>❌ Failed tests (${failed.length})</summary>`, '');
-    for (const item of failed.slice(0, MAX_FAILED)) {
-      out.push(`- **${item.name}**${item.classname ? ` (${item.classname})` : ''}`);
-      if (item.message) out.push('', '```', item.message.replaceAll('```', "'''").slice(0, MAX_MESSAGE), '```');
-      out.push('');
-    }
-    out.push('</details>');
-  }
-
-  return out;
 }
 
 export function renderMarkdown({
