@@ -27,10 +27,9 @@ steps:
 | --- | --- | --- |
 | `lcov-file` | required | Path to the lcov file |
 | `baseline-file` | `''` | lcov file from the base branch, enables deltas |
-| `junit-file` | `''` | JUnit XML test report; adds the tests table (counts and execution time), failed test details and the slowest tests |
+| `junit-file` | `''` | JUnit XML test report; adds the tests table (counts and execution time) and failed test details |
 | `title` | `Coverage Report` | Comment and report title |
 | `thresholds` | `90,70` | Green and yellow cutoffs in percent, they drive the tier emojis and the badge color |
-| `slowest-tests` | `5` | How many of the slowest tests to list (needs `junit-file`), `0` disables it |
 | `badge-branch` | `''` | Branch that receives `coverage.json` on pushes to the baseline branch, for a README badge |
 | `minimum-coverage` | `0` | Fail when total line coverage is below this value |
 | `hide-fully-covered` | `false` | Hide 100% files from the all files list and the HTML report; changed files are always listed |

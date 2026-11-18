@@ -64,11 +64,9 @@ function fileTable(rows, basePaths, thresholds, blobUrl) {
   return ['| File | Stmts | Miss | Before | After | Δ | Missing |', '| --- | --- | --- | --- | --- | --- | --- |', ...body];
 }
 
-const cell = (text) => text.replaceAll('|', '\\|');
-
 const FAILED = new Set(['failure', 'error']);
 
-function testsSection(tests, slowestCount) {
+function testsSection(tests) {
   const passed = tests.tests - tests.failures - tests.errors - tests.skipped;
   const out = [
     '',
@@ -90,12 +88,6 @@ function testsSection(tests, slowestCount) {
     out.push('</details>');
   }
 
-  const slow = tests.cases.filter((item) => item.time > 0).sort((a, b) => b.time - a.time).slice(0, slowestCount);
-  if (slow.length) {
-    out.push('', '<details><summary>🐢 Slowest tests</summary>', '', '| Test | Time |', '| --- | --- |');
-    out.push(...slow.map((item) => `| ${cell(item.name)} | ${formatTime(item.time)} |`));
-    out.push('', '</details>');
-  }
   return out;
 }
 
@@ -109,7 +101,6 @@ export function renderMarkdown({
   run,
   blobUrl,
   tests = null,
-  slowestTests = 0,
   history = [],
   hideFullyCovered = false,
   thresholds = DEFAULT_THRESHOLDS,
@@ -137,8 +128,6 @@ export function renderMarkdown({
     out.push('', `📉 Trend (last ${values.length} runs): ${sparkline(values)} ${formatPercent(values[0])} → ${formatPercent(values.at(-1))}`);
   }
 
-  if (tests) out.push(...testsSection(tests, slowestTests));
-
   if (changed) {
     const touched = ordered.filter((row) => changed.has(row.path));
     out.push('', `<details open><summary>📁 Changed files (${touched.length})</summary>`, '');
@@ -154,6 +143,8 @@ export function renderMarkdown({
     if (listed.length > MAX_FILES) out.push('', `_${listed.length - MAX_FILES} more files in the full report._`);
     out.push('', '</details>');
   }
+
+  if (tests) out.push(...testsSection(tests));
 
   if (reportUrl) out.push('', `📄 [Full HTML report](${reportUrl})`);
 

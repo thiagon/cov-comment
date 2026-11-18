@@ -10,7 +10,7 @@ inputs:
     description: Path to the lcov file
     required: true
   junit-file:
-    description: Path to a JUnit XML test report, adds tests, failures, slowest tests and execution time
+    description: Path to a JUnit XML test report, adds tests, failed test details and execution time
     default: ''
   baseline-file:
     description: Path to a baseline lcov file, overrides the automatic baseline
@@ -27,9 +27,6 @@ inputs:
   thresholds:
     description: Green and yellow cutoffs in percent, as green,yellow
     default: '90,70'
-  slowest-tests:
-    description: How many of the slowest tests to list, 0 disables the list
-    default: '5'
   hide-fully-covered:
     description: Hide files with 100% coverage from the all files list and the HTML report, changed files are always listed
     default: 'false'
@@ -135,7 +132,6 @@ runs:
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_HTML_NAME: ${{ inputs.html-name }}
         INPUT_THRESHOLDS: ${{ inputs.thresholds }}
-        INPUT_SLOWEST_TESTS: ${{ inputs.slowest-tests }}
         INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         REPORT_URL: ${{ steps.upload.outputs.artifact-url }}

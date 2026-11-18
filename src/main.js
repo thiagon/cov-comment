@@ -54,7 +54,6 @@ const commands = {
       changed,
       thresholds: parseThresholds(env.INPUT_THRESHOLDS),
       history: previousHistory(),
-      slowestTests: Number(env.INPUT_SLOWEST_TESTS) || 0,
       tests,
       hideFullyCovered,
       blobUrl: sha ? `${server}/${repository}/blob/${sha}` : null,

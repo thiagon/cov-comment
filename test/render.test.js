@@ -109,30 +109,32 @@ const tests = {
   skipped: 1,
   time: 65.25,
   cases: [
-    { name: 'fast', classname: '', time: 0.01, status: 'passed', message: '' },
-    { name: 'slow | piped', classname: '', time: 2, status: 'passed', message: '' },
+    { name: 'ok', classname: '', time: 0.01, status: 'passed', message: '' },
     { name: 'bad', classname: 'suite', time: 0, status: 'failure', message: 'expected ```x``` to equal y' },
     { name: 'broken', classname: '', time: 0, status: 'error', message: '' },
     { name: 'skip', classname: '', time: 0, status: 'skipped', message: '' },
   ],
 };
 
-test('markdown shows tests, failure details and slowest tests', () => {
-  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests, slowestTests: 1 });
+test('markdown shows tests and failure details after the coverage sections', () => {
+  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests, reportUrl: 'https://x/r', commit: { sha: 'abcdef1', url: 'u' } });
   assert.match(body, /#### 🧪 Tests/);
   assert.match(body, /\| 6 \| 3 \| 1 \| 1 \| 1 \| 1m 5\.3s \|/);
   assert.match(body, /<details open><summary>❌ Failed tests \(2\)<\/summary>/);
   assert.match(body, /- \*\*bad\*\* \(suite\)\n\n```\nexpected '''x''' to equal y\n```/);
   assert.match(body, /- \*\*broken\*\*\n/);
-  assert.match(body, /🐢 Slowest tests[\s\S]*\| slow \\\| piped \| 2\.00s \|/);
-  assert.doesNotMatch(body, /\| fast \|/);
+  assert.doesNotMatch(body, /Slowest/);
+  const at = (text) => body.indexOf(text);
+  assert.ok(at('All files') < at('#### 🧪 Tests'));
+  assert.ok(at('#### 🧪 Tests') < at('Full HTML report'));
+  assert.ok(at('Full HTML report') < at('Commit ['));
 });
 
-test('markdown omits failure and slowest sections when not needed', () => {
+test('markdown omits the failure section when nothing failed', () => {
   const clean = { ...tests, cases: [{ name: 'a', classname: '', time: 1, status: 'passed', message: '' }] };
-  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests: clean, slowestTests: 0 });
+  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests: clean });
   assert.match(body, /#### 🧪 Tests/);
-  assert.doesNotMatch(body, /Failed tests|Slowest/);
+  assert.doesNotMatch(body, /Failed tests/);
   assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null }), /Tests/);
 });
 
