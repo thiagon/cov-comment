@@ -128,7 +128,7 @@ runs:
         INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
-        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
     - id: upload
       uses: actions/upload-artifact@v7
       with:
@@ -148,7 +148,7 @@ runs:
         INPUT_ANNOTATE_MISSING_LINES: ${{ inputs.annotate-missing-lines }}
         INPUT_ANNOTATION_TYPE: ${{ inputs.annotation-type }}
         INPUT_MAX_FILES_IN_COMMENT: ${{ inputs.max-files-in-comment }}
-        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
         REPORT_URL: ${{ steps.upload.outputs.artifact-url }}
     - shell: bash
       run: node "$GITHUB_ACTION_PATH/src/main.js" gate

@@ -8,39 +8,66 @@ import { parseJunit } from './junit.js';
 import { parseLcov, percent, summarize, total } from './lcov.js';
 import { badgeJson, MARKER, parseThresholds, renderMarkdown } from './render.js';
 
+// every environment variable the action reads, in one place
 const env = process.env;
 const root = process.cwd();
-const outDir = join(env.RUNNER_TEMP ?? root, 'cov-comment');
-const htmlPath = join(outDir, env.INPUT_ARTIFACT_NAME);
 const tempRoot = env.RUNNER_TEMP ?? root;
+const config = {
+  // inputs, mapped one by one in action.yml
+  lcovFile: env.INPUT_LCOV_FILE,
+  junitFile: env.INPUT_JUNIT_FILE,
+  baselineFile: env.INPUT_BASELINE_FILE,
+  title: env.INPUT_TITLE,
+  artifactName: env.INPUT_ARTIFACT_NAME,
+  thresholds: parseThresholds(env.INPUT_THRESHOLDS),
+  minimumCoverage: env.INPUT_MINIMUM_COVERAGE,
+  skipCovered: env.INPUT_SKIP_COVERED === 'true',
+  expandChanged: env.INPUT_EXPAND_CHANGED_FILES !== 'false',
+  annotateMissingLines: env.INPUT_ANNOTATE_MISSING_LINES !== 'false',
+  annotationType: parseAnnotationType(env.INPUT_ANNOTATION_TYPE),
+  maxFiles: Number(env.INPUT_MAX_FILES_IN_COMMENT) || undefined,
+  reportUrl: env.REPORT_URL,
+  token: env.GITHUB_TOKEN,
+  // set by the runner
+  repository: env.GITHUB_REPOSITORY,
+  server: env.GITHUB_SERVER_URL ?? 'https://github.com',
+  eventPath: env.GITHUB_EVENT_PATH,
+  sha: env.GITHUB_SHA,
+  workflow: env.GITHUB_WORKFLOW,
+  runId: env.GITHUB_RUN_ID,
+  runNumber: env.GITHUB_RUN_NUMBER,
+  outputFile: env.GITHUB_OUTPUT,
+  summaryFile: env.GITHUB_STEP_SUMMARY,
+};
+
+const outDir = join(tempRoot, 'cov-comment');
+const htmlPath = join(outDir, config.artifactName);
 const baselineDir = join(tempRoot, 'cov-comment-baseline');
 const historyFile = join(baselineDir, 'history.json');
 const previousHistory = () => (existsSync(historyFile) ? readHistory(readFileSync(historyFile, 'utf8')) : []);
 
 const load = (path) => summarize(parseLcov(readFileSync(path, 'utf8')), root);
-const rows = load(env.INPUT_LCOV_FILE);
-const baseRows = env.INPUT_BASELINE_FILE && existsSync(env.INPUT_BASELINE_FILE) ? load(env.INPUT_BASELINE_FILE) : null;
-const tests = env.INPUT_JUNIT_FILE && existsSync(env.INPUT_JUNIT_FILE) ? parseJunit(readFileSync(env.INPUT_JUNIT_FILE, 'utf8')) : null;
+const rows = load(config.lcovFile);
+const baseRows = config.baselineFile && existsSync(config.baselineFile) ? load(config.baselineFile) : null;
+const tests = config.junitFile && existsSync(config.junitFile) ? parseJunit(readFileSync(config.junitFile, 'utf8')) : null;
 const totalLines = percent(total(rows).lines);
 
-const event = env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')) : {};
+const event = config.eventPath ? JSON.parse(readFileSync(config.eventPath, 'utf8')) : {};
 const pull = event.pull_request;
-const repository = env.GITHUB_REPOSITORY;
-const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
-const sha = pull?.head.sha ?? env.GITHUB_SHA;
-const canComment = Boolean(pull && env.INPUT_GITHUB_TOKEN);
-const skipCovered = env.INPUT_SKIP_COVERED === 'true';
+const { repository, server } = config;
+const sha = pull?.head.sha ?? config.sha;
+const canComment = Boolean(pull && config.token);
 const fetchChanged = () =>
-  canComment ? listChangedFiles({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number }) : null;
+  canComment ? listChangedFiles({ fetchImpl: fetch, token: config.token, repository, issueNumber: pull.number }) : null;
 
-const setOutput = (key, value) => env.GITHUB_OUTPUT && appendFileSync(env.GITHUB_OUTPUT, `${key}=${value}\n`);
+const setOutput = (key, value) => config.outputFile && appendFileSync(config.outputFile, `${key}=${value}\n`);
 
 const commands = {
   async report() {
     const changed = await fetchChanged();
     const sources = new Map(rows.map((row) => [row.path, existsSync(row.path) ? readFileSync(row.path, 'utf8') : null]));
     mkdirSync(outDir, { recursive: true });
-    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources, changed, tests, thresholds: parseThresholds(env.INPUT_THRESHOLDS) }));
+    writeFileSync(htmlPath, renderHtml({ title: config.title, rows, sources, changed, tests, thresholds: config.thresholds }));
     setOutput('html-path', htmlPath);
     setOutput('total-coverage', totalLines.toFixed(2));
   },
@@ -48,21 +75,21 @@ const commands = {
   async comment() {
     const changed = await fetchChanged();
     const body = renderMarkdown({
-      title: env.INPUT_TITLE,
+      title: config.title,
       rows,
       baseRows,
-      reportUrl: env.REPORT_URL,
+      reportUrl: config.reportUrl,
       changed,
-      thresholds: parseThresholds(env.INPUT_THRESHOLDS),
+      thresholds: config.thresholds,
       history: previousHistory(),
       tests,
-      skipCovered,
-      maxFiles: Number(env.INPUT_MAX_FILES_IN_COMMENT) || undefined,
-      expandChanged: env.INPUT_EXPAND_CHANGED_FILES !== 'false',
+      skipCovered: config.skipCovered,
+      maxFiles: config.maxFiles,
+      expandChanged: config.expandChanged,
       blobUrl: sha ? `${server}/${repository}/blob/${sha}` : null,
       commit: sha ? { sha, url: `${server}/${repository}/commit/${sha}` } : null,
-      run: env.GITHUB_RUN_ID
-        ? { label: `${env.GITHUB_WORKFLOW} #${env.GITHUB_RUN_NUMBER}`, url: `${server}/${repository}/actions/runs/${env.GITHUB_RUN_ID}` }
+      run: config.runId
+        ? { label: `${config.workflow} #${config.runNumber}`, url: `${server}/${repository}/actions/runs/${config.runId}` }
         : null,
     });
     buildAnnotations({
@@ -70,12 +97,12 @@ const commands = {
       changed,
       tests,
       root,
-      missingLines: env.INPUT_ANNOTATE_MISSING_LINES !== 'false',
-      type: parseAnnotationType(env.INPUT_ANNOTATION_TYPE),
+      missingLines: config.annotateMissingLines,
+      type: config.annotationType,
     }).forEach((line) => console.log(line));
-    if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${body}\n`);
+    if (config.summaryFile) appendFileSync(config.summaryFile, `${body}\n`);
     if (!canComment) return;
-    await upsertComment({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number, body, marker: MARKER });
+    await upsertComment({ fetchImpl: fetch, token: config.token, repository, issueNumber: pull.number, body, marker: MARKER });
   },
 
   history() {
@@ -89,19 +116,19 @@ const commands = {
     };
     const publishDir = join(tempRoot, 'cov-comment-publish');
     mkdirSync(publishDir, { recursive: true });
-    copyFileSync(env.INPUT_LCOV_FILE, join(publishDir, 'lcov.info'));
+    copyFileSync(config.lcovFile, join(publishDir, 'lcov.info'));
     writeFileSync(join(publishDir, 'history.json'), JSON.stringify(appendPoint(previousHistory(), point)));
   },
 
   badge() {
     const badgeDir = join(tempRoot, 'cov-comment-badge');
     mkdirSync(badgeDir, { recursive: true });
-    writeFileSync(join(badgeDir, 'coverage.json'), JSON.stringify(badgeJson(totalLines, parseThresholds(env.INPUT_THRESHOLDS))));
+    writeFileSync(join(badgeDir, 'coverage.json'), JSON.stringify(badgeJson(totalLines, config.thresholds)));
   },
 
   gate() {
-    const minimum = Number(env.INPUT_MINIMUM_COVERAGE);
-    if (Number.isNaN(minimum)) throw new Error(`Invalid minimum-coverage: ${env.INPUT_MINIMUM_COVERAGE}`);
+    const minimum = Number(config.minimumCoverage);
+    if (Number.isNaN(minimum)) throw new Error(`Invalid minimum-coverage: ${config.minimumCoverage}`);
     if (totalLines < minimum) {
       console.error(`Line coverage ${totalLines.toFixed(2)}% is below the minimum of ${minimum}%`);
       process.exitCode = 1;
