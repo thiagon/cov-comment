@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}}</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', '"Noto Sans"', 'Inter', 'Helvetica', 'Arial', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', '"SF Mono"', 'Menlo', 'Consolas', '"Liberation Mono"', '"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            gh: {
+              canvas: '#ffffff',
+              canvasDark: '#0d1117',
+              subtle: '#f6f8fa',
+              subtleDark: '#161b22',
+              insetDark: '#010409',
+              border: '#d0d7de',
+              borderDark: '#30363d',
+              text: '#1f2328',
+              textDark: '#e6edf3',
+              muted: '#656d76',
+              mutedDark: '#7d8590',
+              accent: '#0969da',
+              accentDark: '#2f81f7',
+              success: '#1a7f37',
+              successDark: '#3fb950',
+              successEmphasis: '#2da44e',
+              successEmphasisDark: '#238636',
+              danger: '#cf222e',
+              dangerDark: '#f85149',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* GitHub Primer Source Code Table Styling */
+    .source-wrapper {
+      overflow-x: auto;
+    }
+    table.source {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "JetBrains Mono", monospace;
+      font-size: 12px;
+      line-height: 20px;
+    }
+    table.source tr {
+      transition: background-color 0.08s ease;
+    }
+    /* GitHub Diff Addition / Covered Line Colors */
+    table.source tr.hit {
+      background-color: #dafbe1;
+    }
+    .dark table.source tr.hit {
+      background-color: rgba(46, 160, 67, 0.15);
+    }
+    /* GitHub Diff Deletion / Uncovered Line Colors */
+    table.source tr.miss {
+      background-color: #ffebe9;
+    }
+    .dark table.source tr.miss {
+      background-color: rgba(248, 81, 73, 0.15);
+    }
+    table.source tr:hover {
+      filter: brightness(0.97);
+    }
+    .dark table.source tr:hover {
+      filter: brightness(1.18);
+    }
+    table.source td {
+      padding: 0 10px;
+      vertical-align: top;
+      border: 0;
+    }
+    table.source td.no {
+      width: 50px;
+      text-align: right;
+      user-select: none;
+      color: #656d76;
+      border-right: 1px solid #d0d7de;
+      background-color: #f6f8fa;
+    }
+    .dark table.source td.no {
+      color: #7d8590;
+      border-right: 1px solid #30363d;
+      background-color: #161b22;
+    }
+    table.source tr.hit td.no {
+      background-color: #aceebb;
+      color: #1f2328;
+      border-right-color: #82e296;
+    }
+    .dark table.source tr.hit td.no {
+      background-color: rgba(46, 160, 67, 0.3);
+      color: #e6edf3;
+      border-right-color: rgba(46, 160, 67, 0.4);
+    }
+    table.source tr.miss td.no {
+      background-color: #ffcecb;
+      color: #1f2328;
+      border-right-color: #ffaba8;
+    }
+    .dark table.source tr.miss td.no {
+      background-color: rgba(248, 81, 73, 0.3);
+      color: #e6edf3;
+      border-right-color: rgba(248, 81, 73, 0.4);
+    }
+    table.source td.hits {
+      width: 58px;
+      text-align: right;
+      user-select: none;
+      font-weight: 600;
+      font-size: 11px;
+      border-right: 1px solid #d0d7de;
+      padding: 0 8px;
+    }
+    table.source td.hits:not(:empty)::after {
+      content: "x";
+      opacity: 0.75;
+      margin-left: 1px;
+      font-weight: 400;
+    }
+    .dark table.source td.hits {
+      border-right: 1px solid #30363d;
+    }
+    table.source tr.hit td.hits {
+      color: #1a7f37;
+      background-color: #dafbe1;
+      border-right-color: #82e296;
+    }
+    .dark table.source tr.hit td.hits {
+      color: #3fb950;
+      background-color: rgba(46, 160, 67, 0.18);
+      border-right-color: rgba(46, 160, 67, 0.4);
+    }
+    table.source tr.miss td.hits {
+      color: #cf222e;
+      background-color: #ffebe9;
+      border-right-color: #ffaba8;
+    }
+    .dark table.source tr.miss td.hits {
+      color: #f85149;
+      background-color: rgba(248, 81, 73, 0.18);
+      border-right-color: rgba(248, 81, 73, 0.4);
+    }
+    table.source pre {
+      margin: 0;
+      white-space: pre;
+      font-family: inherit;
+      color: #1f2328;
+    }
+    .dark table.source pre {
+      color: #e6edf3;
+    }
+
+    /* Filter modes */
+    body.filter-hits-only table.source tr:not(.hit) {
+      display: none;
+    }
+    body.filter-miss-only table.source tr:not(.miss) {
+      display: none;
+    }
+    body.hide-heatmap table.source tr.hit {
+      background-color: transparent !important;
+    }
+    body.hide-heatmap table.source tr.hit td.hits,
+    body.hide-heatmap table.source tr.hit td.no {
+      background-color: transparent !important;
+      border-right-color: #d0d7de !important;
+    }
+    .dark body.hide-heatmap table.source tr.hit td.hits,
+    .dark body.hide-heatmap table.source tr.hit td.no {
+      border-right-color: #30363d !important;
+    }
+
+    /* GitHub style scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #afb8c1;
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #30363d;
+    }
+  </style>
+</head>
+<body class="bg-[#ffffff] dark:bg-[#0d1117] text-[#1f2328] dark:text-[#e6edf3] min-h-screen transition-colors duration-150">
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-2.5 px-4 py-2.5 rounded-md bg-[#1f2328] dark:bg-[#238636] border border-[#30363d] text-white shadow-lg text-sm font-medium">
+    <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+    <span id="toast-msg">Code copied to clipboard!</span>
+  </div>
+
+  <!-- Top Header (GitHub App Bar Style) -->
+  <header class="sticky top-0 z-30 bg-[#f6f8fa] dark:bg-[#010409] border-b border-[#d0d7de] dark:border-[#30363d]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-md bg-[#dafbe1] dark:bg-[#238636]/20 border border-[#1a7f37]/30 dark:border-[#3fb950]/40 flex items-center justify-center text-[#1a7f37] dark:text-[#3fb950]">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-base font-semibold tracking-tight text-[#1f2328] dark:text-[#e6edf3]">{{title}}</h1>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium {{badge_class}} text-white">
+              <i data-lucide="{{badge_icon}}" class="w-3 h-3 stroke-[3]"></i>
+              <span>{{badge_label}}</span>
+            </span>
+          </div>
+          <p class="text-xs text-[#656d76] dark:text-[#7d8590]">{{subtitle}}</p>
+        </div>
+      </div>
+
+      <!-- Global Actions -->
+      <div class="flex items-center gap-2">
+        <!-- Toggle Heatmap -->
+        <button id="toggleHeatmapBtn" onclick="toggleHeatmap()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#f6f8fa] hover:bg-[#f3f4f6] dark:bg-[#21262d] dark:hover:bg-[#30363d] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#c9d1d9] shadow-sm transition">
+          <i data-lucide="highlighter" class="w-3.5 h-3.5 text-[#1a7f37] dark:text-[#3fb950]"></i>
+          <span class="hidden sm:inline">Diff Colors</span>
+        </button>
+
+        <!-- Theme Toggle Button -->
+        <button onclick="toggleTheme()" class="p-1.5 rounded-md bg-[#f6f8fa] hover:bg-[#f3f4f6] dark:bg-[#21262d] dark:hover:bg-[#30363d] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#c9d1d9] shadow-sm transition" aria-label="Toggle theme">
+          <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-[#e3b341]"></i>
+          <i data-lucide="moon" class="w-4 h-4 block dark:hidden text-[#656d76]"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    
+    <!-- Metrics Dashboard (GitHub Box Cards) -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <!-- Lines -->
+      <div class="bg-[#ffffff] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-md p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-[#656d76] dark:text-[#7d8590]">Lines Coverage</span>
+          <span class="text-[#1a7f37] dark:text-[#3fb950]">
+            <i data-lucide="code-2" class="w-4 h-4"></i>
+          </span>
+        </div>
+        <div class="flex items-baseline justify-between mb-2.5">
+          <span class="text-2xl font-semibold text-[#1f2328] dark:text-[#e6edf3]">{{lines_pct}}</span>
+          <span class="text-xs font-mono text-[#656d76] dark:text-[#7d8590]">{{lines_count}}</span>
+        </div>
+        <div class="w-full h-2 bg-[#eaeef2] dark:bg-[#21262d] rounded-full overflow-hidden">
+          <div class="h-full bg-[#2da44e] dark:bg-[#3fb950] rounded-full" style="width: {{lines_width}}%"></div>
+        </div>
+      </div>
+
+      <!-- Functions -->
+      <div class="bg-[#ffffff] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-md p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-[#656d76] dark:text-[#7d8590]">Functions</span>
+          <span class="text-[#0969da] dark:text-[#2f81f7]">
+            <i data-lucide="function-square" class="w-4 h-4"></i>
+          </span>
+        </div>
+        <div class="flex items-baseline justify-between mb-2.5">
+          <span class="text-2xl font-semibold text-[#1f2328] dark:text-[#e6edf3]">{{functions_pct}}</span>
+          <span class="text-xs font-mono text-[#656d76] dark:text-[#7d8590]">{{functions_count}}</span>
+        </div>
+        <div class="w-full h-2 bg-[#eaeef2] dark:bg-[#21262d] rounded-full overflow-hidden">
+          <div class="h-full bg-[#0969da] dark:bg-[#2f81f7] rounded-full" style="width: {{functions_width}}%"></div>
+        </div>
+      </div>
+
+      <!-- Branches -->
+      <div class="bg-[#ffffff] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-md p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-[#656d76] dark:text-[#7d8590]">Branches</span>
+          <span class="text-[#8250df] dark:text-[#a371f7]">
+            <i data-lucide="git-branch" class="w-4 h-4"></i>
+          </span>
+        </div>
+        <div class="flex items-baseline justify-between mb-2.5">
+          <span class="text-2xl font-semibold text-[#1f2328] dark:text-[#e6edf3]">{{branches_pct}}</span>
+          <span class="text-xs font-mono text-[#656d76] dark:text-[#7d8590]">{{branches_count}}</span>
+        </div>
+        <div class="w-full h-2 bg-[#eaeef2] dark:bg-[#21262d] rounded-full overflow-hidden">
+          <div class="h-full bg-[#8250df] dark:bg-[#a371f7] rounded-full" style="width: {{branches_width}}%"></div>
+        </div>
+      </div>
+
+      <!--@tests-->
+      <div class="bg-[#ffffff] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-md p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-[#656d76] dark:text-[#7d8590]">Test Suite</span>
+          <span class="inline-flex items-center gap-1 text-xs font-mono text-[#656d76] dark:text-[#7d8590]">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i> {{time}}
+          </span>
+        </div>
+        <div class="my-1.5 flex items-baseline gap-2">
+          <span class="text-2xl font-semibold {{passed_class}}">{{passed}}</span>
+          <span class="text-xs text-[#656d76] dark:text-[#7d8590] font-medium">of {{tests}} tests passed</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1 pt-2 border-t border-[#d0d7de]/60 dark:border-[#30363d] text-center text-xs">
+          <div class="text-[#656d76] dark:text-[#7d8590]"><span class="font-semibold text-[#1f2328] dark:text-[#e6edf3]">{{failures}}</span> fail</div>
+          <div class="text-[#656d76] dark:text-[#7d8590]"><span class="font-semibold text-[#1f2328] dark:text-[#e6edf3]">{{errors}}</span> err</div>
+          <div class="text-[#656d76] dark:text-[#7d8590]"><span class="font-semibold text-[#1f2328] dark:text-[#e6edf3]">{{skipped}}</span> skip</div>
+        </div>
+      </div>
+      <!--@/tests-->
+      {{tests_card}}
+    </section>
+
+    <!-- Toolbar & Filters (GitHub Subnav Style) -->
+    <section class="bg-[#f6f8fa] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] rounded-md p-3 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <!-- Search by file or code -->
+      <div class="relative flex-1">
+        <i data-lucide="search" class="w-4 h-4 text-[#656d76] dark:text-[#7d8590] absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input
+          id="searchInput"
+          type="text"
+          placeholder="Filter changed files or search code snippet..."
+          class="w-full pl-9 pr-8 py-1.5 bg-[#ffffff] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] rounded-md text-sm text-[#1f2328] dark:text-[#e6edf3] placeholder-[#656d76] dark:placeholder-[#7d8590] focus:outline-none focus:border-[#0969da] dark:focus:border-[#2f81f7] focus:ring-1 focus:ring-[#0969da] dark:focus:ring-[#2f81f7] transition"
+          oninput="filterFiles()"
+        >
+        <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-[#656d76] hover:text-[#1f2328] dark:text-[#7d8590] dark:hover:text-[#e6edf3]">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Line Filters & Expand/Collapse Buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="inline-flex rounded-md border border-[#d0d7de] dark:border-[#30363d] bg-[#ffffff] dark:bg-[#0d1117] p-0.5 text-xs font-medium">
+          <button onclick="setLineFilter('all')" id="btn-filter-all" class="px-2.5 py-1 rounded-[4px] bg-[#0969da] dark:bg-[#1f6feb] text-white transition">
+            All lines
+          </button>
+          <button onclick="setLineFilter('hits')" id="btn-filter-hits" class="px-2.5 py-1 rounded-[4px] text-[#656d76] dark:text-[#7d8590] hover:text-[#1f2328] dark:hover:text-[#e6edf3] transition">
+            Covered only
+          </button>
+          <button onclick="setLineFilter('miss')" id="btn-filter-miss" class="px-2.5 py-1 rounded-[4px] text-[#656d76] dark:text-[#7d8590] hover:text-[#1f2328] dark:hover:text-[#e6edf3] transition">
+            Uncovered ({{miss_count}})
+          </button>
+        </div>
+
+        <button onclick="toggleAllDetails(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#ffffff] hover:bg-[#f3f4f6] dark:bg-[#21262d] dark:hover:bg-[#30363d] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#c9d1d9] shadow-sm transition">
+          <i data-lucide="unfold-vertical" class="w-3.5 h-3.5"></i>
+          <span>Expand all</span>
+        </button>
+        <button onclick="toggleAllDetails(false)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#ffffff] hover:bg-[#f3f4f6] dark:bg-[#21262d] dark:hover:bg-[#30363d] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#c9d1d9] shadow-sm transition">
+          <i data-lucide="fold-vertical" class="w-3.5 h-3.5"></i>
+          <span>Collapse all</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Main Layout: Sidebar + Code List -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- Sidebar Navigation (GitHub PR File Tree Style) -->
+      <aside class="lg:col-span-3 lg:sticky lg:top-20 bg-[#ffffff] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] rounded-md overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-[#f6f8fa] dark:bg-[#161b22] border-b border-[#d0d7de] dark:border-[#30363d]">
+          <h2 class="text-xs font-semibold text-[#1f2328] dark:text-[#e6edf3]">Files</h2>
+          <span id="fileCountBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-[#eaeef2] dark:bg-[#30363d] text-[#1f2328] dark:text-[#e6edf3]">{{file_count}}</span>
+        </div>
+        <nav id="sidebarNav" class="p-1.5 space-y-0.5">
+          <!-- Dynamically populated via JS -->
+        </nav>
+      </aside>
+
+      <!-- Files Container -->
+      <div class="lg:col-span-9 space-y-4" id="filesContainer">
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden bg-[#ffffff] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] rounded-md p-12 text-center">
+          <div class="w-10 h-10 rounded-full bg-[#f6f8fa] dark:bg-[#161b22] border border-[#d0d7de] dark:border-[#30363d] flex items-center justify-center mx-auto mb-3 text-[#656d76] dark:text-[#7d8590]">
+            <i data-lucide="search-x" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-sm font-semibold mb-1">No matching files found</h3>
+          <p class="text-xs text-[#656d76] dark:text-[#7d8590] mb-4">No file name or code snippet matches your filter.</p>
+          <button onclick="clearSearch()" class="px-3 py-1.5 rounded-md text-xs font-medium bg-[#2da44e] hover:bg-[#2c974b] dark:bg-[#238636] dark:hover:bg-[#2ea043] text-white transition">
+            Clear filter
+          </button>
+        </div>
+
+        <!--@file-->
+        <details{{open}} class="file-card group bg-[#ffffff] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] rounded-md overflow-hidden" data-filename="{{name}}" data-pct="{{pct}}" data-tone="{{tone}}" id="{{id}}">
+          <summary class="cursor-pointer select-none px-4 py-2.5 bg-[#f6f8fa] dark:bg-[#161b22] hover:bg-[#f3f4f6] dark:hover:bg-[#1f242c] flex flex-wrap items-center justify-between gap-4 border-b border-transparent group-open:border-[#d0d7de] dark:group-open:border-[#30363d] transition">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <i data-lucide="chevron-right" class="w-4 h-4 text-[#656d76] dark:text-[#7d8590] transition-transform duration-150 group-open:rotate-90"></i>
+              <i data-lucide="file-code" class="w-4 h-4 text-[#656d76] dark:text-[#7d8590] shrink-0"></i>
+              <span class="name font-mono text-xs font-semibold text-[#1f2328] dark:text-[#e6edf3] truncate">{{name}}</span>{{changed_badge}}
+              <span class="line-count-badge text-xs font-mono text-[#656d76] dark:text-[#7d8590]">{{lines_hit}}/{{lines_found}} lines</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="hidden sm:flex items-center gap-2">
+                <!-- GitHub diff-stat squares style -->
+                <div class="flex gap-0.5">{{squares}}</div>
+                <span class="text-xs font-mono font-semibold {{tone_text}}">{{pct_label}}</span>
+              </div>
+              <button type="button" onclick="copyFileCode(event, this)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-[#ffffff] hover:bg-[#f3f4f6] dark:bg-[#21262d] dark:hover:bg-[#30363d] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#c9d1d9] shadow-sm transition">
+                <i data-lucide="copy" class="w-3 h-3"></i>
+                <span>Copy</span>
+              </button>
+            </div>
+          </summary>
+          <div class="source-wrapper">
+            {{source}}
+          </div>
+        </details>
+        <!--@/file-->
+        {{files}}
+
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const TONES = {
+      green: { dot: 'bg-[#2da44e] dark:bg-[#3fb950]', text: 'text-[#1a7f37] dark:text-[#3fb950]' },
+      yellow: { dot: 'bg-[#bf8700] dark:bg-[#d29922]', text: 'text-[#9a6700] dark:text-[#d29922]' },
+      red: { dot: 'bg-[#cf222e] dark:bg-[#f85149]', text: 'text-[#cf222e] dark:text-[#f85149]' },
+    };
+    const escapeHtml = (text) => text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+    // Initialize icons and file metadata on load
+    window.onload = function () {
+      lucide.createIcons();
+      initFileMetadata();
+    };
+
+    // Calculate line counts and populate the quick-jump sidebar automatically
+    function initFileMetadata() {
+      const cards = document.querySelectorAll('.file-card');
+      const sidebar = document.getElementById('sidebarNav');
+      sidebar.innerHTML = '';
+
+      cards.forEach((card) => {
+        const filename = card.getAttribute('data-filename');
+        const tone = TONES[card.dataset.tone] ?? TONES.green;
+
+        // Add item to sidebar (GitHub file tree item style)
+        const link = document.createElement('a');
+        link.href = `#${card.id}`;
+        link.className = 'flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono text-[#1f2328] dark:text-[#c9d1d9] hover:bg-[#f6f8fa] dark:hover:bg-[#161b22] transition group';
+        link.innerHTML = `
+          <span class="flex items-center gap-2 truncate">
+            <span class="w-2 h-2 rounded-full ${tone.dot} shrink-0"></span>
+            <span class="truncate group-hover:text-[#0969da] dark:group-hover:text-[#2f81f7] transition">${escapeHtml(filename)}</span>
+          </span>
+          <span class="text-[11px] font-semibold ${tone.text}">${Number(card.dataset.pct).toFixed(0)}%</span>
+        `;
+        link.onclick = (e) => {
+          e.preventDefault();
+          card.open = true;
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        sidebar.appendChild(link);
+      });
+    }
+
+    // Toggle Light / Dark Theme
+    function toggleTheme() {
+      const html = document.documentElement;
+      html.classList.toggle('dark');
+    }
+
+    // Toggle line background highlight colors
+    function toggleHeatmap() {
+      document.body.classList.toggle('hide-heatmap');
+      const btn = document.getElementById('toggleHeatmapBtn');
+      const isHidden = document.body.classList.contains('hide-heatmap');
+      btn.classList.toggle('opacity-60', isHidden);
+    }
+
+    // Filter files by filename or code content
+    function filterFiles() {
+      const input = document.getElementById('searchInput');
+      const clearBtn = document.getElementById('clearSearchBtn');
+      const query = input.value.trim().toLowerCase();
+      const cards = document.querySelectorAll('.file-card');
+      let visibleCount = 0;
+
+      clearBtn.classList.toggle('hidden', query.length === 0);
+
+      cards.forEach((card) => {
+        const filename = card.getAttribute('data-filename').toLowerCase();
+        const codeContent = (card.querySelector('table.source')?.innerText ?? '').toLowerCase();
+        const matches = filename.includes(query) || codeContent.includes(query);
+
+        if (matches) {
+          card.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+
+      document.getElementById('fileCountBadge').textContent = visibleCount;
+      document.getElementById('emptyState').classList.toggle('hidden', visibleCount > 0);
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('searchInput');
+      input.value = '';
+      filterFiles();
+      input.focus();
+    }
+
+    // Filter visible source lines (All / Covered / Uncovered)
+    function setLineFilter(mode) {
+      document.body.classList.remove('filter-hits-only', 'filter-miss-only');
+      if (mode === 'hits') document.body.classList.add('filter-hits-only');
+      if (mode === 'miss') document.body.classList.add('filter-miss-only');
+
+      const buttons = {
+        all: document.getElementById('btn-filter-all'),
+        hits: document.getElementById('btn-filter-hits'),
+        miss: document.getElementById('btn-filter-miss')
+      };
+
+      Object.keys(buttons).forEach((key) => {
+        if (key === mode) {
+          buttons[key].className = 'px-2.5 py-1 rounded-[4px] bg-[#0969da] dark:bg-[#1f6feb] text-white transition';
+        } else {
+          buttons[key].className = 'px-2.5 py-1 rounded-[4px] text-[#656d76] dark:text-[#7d8590] hover:text-[#1f2328] dark:hover:text-[#e6edf3] transition';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

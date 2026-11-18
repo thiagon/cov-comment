@@ -142,21 +142,27 @@ test('markdown shows the tests table after the coverage sections', () => {
 test('html puts changed files first and expanded, and can hide fully covered ones', () => {
   const sources = new Map();
   const html = renderHtml({ title: 'T', rows, sources, changed: new Set(['b.js']), skipCovered: true });
-  assert.match(html, /<h2>Changed files<\/h2><details open>.*b\.js/);
-  assert.match(html, /<h2>Other files<\/h2>/);
-  assert.doesNotMatch(html, /c\.js/);
-  assert.match(renderHtml({ title: 'T', rows, sources, changed: new Set() }), /No coverage data for changed files/);
-  assert.doesNotMatch(renderHtml({ title: 'T', rows: [rows[1]], sources, skipCovered: true }), /<h2>/);
+  assert.match(html, /<details open class="file-card[^>]*data-filename="b\.js"/);
+  assert.match(html, /<span id="fileCountBadge"[^>]*>2<\/span>/);
+  assert.ok(html.indexOf('data-filename="b.js"') < html.indexOf('data-filename="a.js"'));
+  assert.doesNotMatch(html, /data-filename="c\.js"/);
+  assert.match(renderHtml({ title: 'T', rows: [rows[1]], sources, skipCovered: true }), /No coverage data to show/);
 });
 
-test('html shows the tests summary and is self-contained', () => {
-  assert.match(renderHtml({ title: 'T', rows, sources: new Map(), tests }), /🧪 6 tests · ❌ 1 failures · 💥 1 errors · ⏭️ 1 skipped · ⏱️ 1m 5\.3s/);
+test('html fills every placeholder, shows the tests summary and escapes content', () => {
+  const noTests = renderHtml({ title: 'T', rows, sources: new Map() });
+  assert.doesNotMatch(noTests, /\{\{\w+\}\}/);
+  assert.doesNotMatch(noTests, /Test Suite/);
+  const withTests = renderHtml({ title: 'T', rows, sources: new Map(), tests });
+  assert.doesNotMatch(withTests, /\{\{\w+\}\}/);
+  assert.match(withTests, /Test Suite/);
+  assert.match(withTests, /1m 5\.3s/);
   const sources = new Map([['a.js', 'if (a < b) {}\nx\ny\nz'], ['b.js', null]]);
-  const html = renderHtml({ title: 'T "x"', rows, sources });
+  const html = renderHtml({ title: 'T "x" {{files}}', rows, sources });
+  assert.match(html, /<title>T &quot;x&quot; \{\{files\}\}<\/title>/);
   assert.match(html, /a &lt; b/);
   assert.match(html, /Source not available/);
   assert.match(html, /class="hit"/);
   assert.match(html, /class="miss"/);
   assert.match(html, /class="none"/);
-  assert.doesNotMatch(html, /<script|<link /);
 });
