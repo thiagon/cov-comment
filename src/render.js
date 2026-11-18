@@ -1,10 +1,21 @@
-import { percent, total } from './lcov.js';
+import { sparkline } from './history.js';
+import { formatTime } from './junit.js';
+import { isFullyCovered, percent, total } from './lcov.js';
 
 export const MARKER = '<!-- cov-comment -->';
+export const DEFAULT_THRESHOLDS = [90, 70];
 
-export const tier = (pct) => (pct >= 90 ? 'brightgreen' : pct >= 70 ? 'yellow' : 'red');
+const TIER_EMOJI = { brightgreen: '🟢', yellow: '🟡', red: '🔴' };
 
-export const badgeUrl = (pct) => `https://img.shields.io/badge/Coverage-${Math.round(pct)}%25-${tier(pct)}`;
+export const tier = (pct, [green, yellow] = DEFAULT_THRESHOLDS) => (pct >= green ? 'brightgreen' : pct >= yellow ? 'yellow' : 'red');
+
+export const badgeUrl = (pct, thresholds) => `https://img.shields.io/badge/Coverage-${Math.round(pct)}%25-${tier(pct, thresholds)}`;
+
+export function parseThresholds(value) {
+  const parts = String(value).split(',').map(Number);
+  const valid = parts.length === 2 && parts.every(Number.isFinite) && parts[0] >= parts[1];
+  return valid ? parts : DEFAULT_THRESHOLDS;
+}
 
 export const formatPercent = (pct) => `${pct.toFixed(1)}%`;
 
@@ -17,47 +28,121 @@ export function formatDelta(current, baseline) {
 
 export const formatRanges = (missing) => missing.map(([start, end]) => (start === end ? `${start}` : `${start}-${end}`)).join(', ');
 
-const MAX_FILES = 100;
+const fileUrl = (blobUrl, path) => `${blobUrl}/${path.split('/').map(encodeURIComponent).join('/')}`;
 
-export function renderMarkdown({ title, rows, baseRows, reportUrl }) {
+const fileCell = (path, blobUrl) => (blobUrl ? `[${path}](${fileUrl(blobUrl, path)})` : path);
+
+const missingCell = (row, blobUrl) =>
+  row.missing
+    .map(([start, end]) => {
+      const label = start === end ? `${start}` : `${start}-${end}`;
+      return blobUrl ? `[${label}](${fileUrl(blobUrl, row.path)}#L${start}${start === end ? '' : `-L${end}`})` : label;
+    })
+    .join(', ');
+
+const after = (stat, thresholds) => {
+  if (stat.found === 0) return '⚪ n/a';
+  const pct = percent(stat);
+  return `${TIER_EMOJI[tier(pct, thresholds)]} ${formatPercent(pct)}`;
+};
+
+const before = (stat) => (stat && stat.found > 0 ? formatPercent(percent(stat)) : '—');
+
+const delta = (stat, baseStat) => (stat.found > 0 && baseStat?.found > 0 ? formatDelta(percent(stat), percent(baseStat)) : '');
+
+const metricRow = (label, stat, baseStat, thresholds) =>
+  `| ${label} | ${before(baseStat)} | ${after(stat, thresholds)} | ${delta(stat, baseStat)} | ${stat.hit}/${stat.found} |`;
+
+function fileTable(rows, basePaths, thresholds, blobUrl) {
+  const body = rows.map((row) => {
+    const base = basePaths?.get(row.path)?.lines;
+    return `| ${fileCell(row.path, blobUrl)} | ${row.lines.found} | ${row.lines.found - row.lines.hit} | ${before(base)} | ${after(row.lines, thresholds)} | ${delta(row.lines, base)} | ${missingCell(row, blobUrl)} |`;
+  });
+  return ['| File | Stmts | Miss | Before | After | Δ | Missing |', '| --- | --- | --- | --- | --- | --- | --- |', ...body];
+}
+
+function testsSection(tests) {
+  const passed = tests.tests - tests.failures - tests.errors - tests.skipped;
+  return [
+    '',
+    '#### 🧪 Tests',
+    '',
+    '| Tests | ✅ Passed | ⏭️ Skipped | ❌ Failures | 💥 Errors | ⏱️ Time |',
+    '| --- | --- | --- | --- | --- | --- |',
+    `| ${tests.tests} | ${passed} | ${tests.skipped} | ${tests.failures} | ${tests.errors} | ${formatTime(tests.time)} |`,
+  ];
+}
+
+export function renderMarkdown({
+  title,
+  rows,
+  baseRows,
+  reportUrl,
+  changed,
+  commit,
+  run,
+  blobUrl,
+  tests = null,
+  history = [],
+  skipCovered = false,
+  maxFiles = 100,
+  expandChanged = true,
+  thresholds = DEFAULT_THRESHOLDS,
+}) {
   const totals = total(rows);
   const baseTotals = baseRows ? total(baseRows) : null;
   const basePaths = baseRows ? new Map(baseRows.map((row) => [row.path, row])) : null;
-  const linesPct = percent(totals.lines);
-
-  const summary = ['lines', 'functions', 'branches'].map((kind) => {
-    const pct = percent(totals[kind]);
-    const delta = formatDelta(pct, baseTotals ? percent(baseTotals[kind]) : null);
-    return `| ${kind} | ${formatPercent(pct)} | ${delta} | ${totals[kind].hit}/${totals[kind].found} |`;
-  });
-
   const ordered = [...rows].sort((a, b) => percent(a.lines) - percent(b.lines));
-  const files = ordered.slice(0, MAX_FILES).map((row) => {
-    const base = basePaths?.get(row.path);
-    const delta = formatDelta(percent(row.lines), base ? percent(base.lines) : null);
-    return `| ${row.path} | ${formatPercent(percent(row.lines))} | ${delta} | ${formatRanges(row.missing)} |`;
-  });
-  const truncated = ordered.length > MAX_FILES ? `\n\n_${ordered.length - MAX_FILES} more files in the full report._` : '';
 
-  const lines = [
-    MARKER,
-    `### ${title}`,
+  const out = [MARKER, `### 📊 ${title}`, '', `![Coverage](${badgeUrl(percent(totals.lines), thresholds)})`];
+
+  out.push(
     '',
-    `![Coverage](${badgeUrl(linesPct)})`,
+    '#### 📈 Summary',
     '',
-    '| Metric | Coverage | Δ | Covered |',
-    '| --- | --- | --- | --- |',
-    ...summary,
-    '',
-    `<details><summary>Files (${rows.length})</summary>`,
-    '',
-    '| File | Lines | Δ | Missing |',
-    '| --- | --- | --- | --- |',
-    ...files,
-    truncated,
-    '',
-    '</details>',
-  ];
-  if (reportUrl) lines.push('', `[Full HTML report](${reportUrl})`);
-  return lines.join('\n');
+    '| Metric | Before | After | Δ | Covered |',
+    '| --- | --- | --- | --- | --- |',
+    metricRow('📈 Lines', totals.lines, baseTotals?.lines, thresholds),
+    metricRow('🔧 Functions', totals.functions, baseTotals?.functions, thresholds),
+    metricRow('🌿 Branches', totals.branches, baseTotals?.branches, thresholds),
+  );
+
+  if (history.length >= 2) {
+    const values = history.map((point) => point.lines);
+    out.push('', `📉 Trend (last ${values.length} runs): ${sparkline(values)} ${formatPercent(values[0])} → ${formatPercent(values.at(-1))}`);
+  }
+
+  if (changed) {
+    const touched = ordered.filter((row) => changed.has(row.path));
+    out.push('', `<details${expandChanged ? ' open' : ''}><summary>📁 Changed files (${touched.length})</summary>`, '');
+    out.push(...(touched.length ? fileTable(touched, basePaths, thresholds, blobUrl) : ['No coverage data for changed files.']));
+    out.push('', '</details>');
+  }
+
+  const rest = changed ? ordered.filter((row) => !changed.has(row.path)) : ordered;
+  const listed = skipCovered ? rest.filter((row) => !isFullyCovered(row)) : rest;
+  const hidden = rest.length - listed.length;
+  if (listed.length) {
+    const count = hidden ? `${listed.length}, ${hidden} fully covered hidden` : `${listed.length}`;
+    out.push('', `<details><summary>🗂️ ${changed ? 'Other' : 'All'} files (${count})</summary>`, '', ...fileTable(listed.slice(0, maxFiles), basePaths, thresholds, blobUrl));
+    if (listed.length > maxFiles) out.push('', `_${listed.length - maxFiles} more files in the full report._`);
+    out.push('', '</details>');
+  }
+
+  if (tests) out.push(...testsSection(tests));
+
+  if (reportUrl) out.push('', `📄 [Full HTML report](${reportUrl})`);
+
+  const origin = [];
+  if (commit) origin.push(`Commit [\`${commit.sha.slice(0, 7)}\`](${commit.url})`);
+  if (run) origin.push(`[${run.label}](${run.url})`);
+  if (origin.length) out.push('', origin.join(' · '));
+  return out.join('\n');
 }
+
+export const badgeJson = (pct, thresholds) => ({
+  schemaVersion: 1,
+  label: 'coverage',
+  message: `${Math.round(pct)}%`,
+  color: tier(pct, thresholds),
+});

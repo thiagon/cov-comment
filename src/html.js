@@ -1,4 +1,5 @@
-import { percent, total } from './lcov.js';
+import { formatTime } from './junit.js';
+import { isFullyCovered, percent, total } from './lcov.js';
 import { badgeUrl, formatPercent, formatRanges } from './render.js';
 
 const escape = (value) =>
@@ -34,17 +35,20 @@ summary .name { flex: 1; font-family: monospace; }
 .muted { opacity: .6; padding: 0 10px; }
 `;
 
-export function renderHtml({ title, rows, sources }) {
+const fileBlock = (row, sources, open) =>
+  `<details${open ? ' open' : ''}><summary><span class="name">${escape(row.path)}</span><span>${formatPercent(percent(row.lines))}</span><span class="muted">${escape(formatRanges(row.missing))}</span></summary>${renderSource(row, sources.get(row.path))}</details>`;
+
+export function renderHtml({ title, rows, sources, changed = null, tests = null, skipCovered = false }) {
   const totals = total(rows);
   const summary = ['lines', 'functions', 'branches']
     .map((kind) => `<tr><td>${kind}</td><td>${formatPercent(percent(totals[kind]))}</td><td>${totals[kind].hit}/${totals[kind].found}</td></tr>`)
     .join('');
   const ordered = [...rows].sort((a, b) => percent(a.lines) - percent(b.lines));
-  const files = ordered
-    .map(
-      (row) => `<details><summary><span class="name">${escape(row.path)}</span><span>${formatPercent(percent(row.lines))}</span><span class="muted">${escape(formatRanges(row.missing))}</span></summary>${renderSource(row, sources.get(row.path))}</details>`,
-    )
-    .join('');
+  const touched = changed ? ordered.filter((row) => changed.has(row.path)) : [];
+  const others = ordered.filter((row) => !changed?.has(row.path) && !(skipCovered && isFullyCovered(row)));
+  const sections = [];
+  if (changed) sections.push(`<h2>Changed files</h2>${touched.map((row) => fileBlock(row, sources, true)).join('') || '<p class="muted">No coverage data for changed files.</p>'}`);
+  if (others.length) sections.push(`<h2>${changed ? 'Other files' : 'Files'}</h2>${others.map((row) => fileBlock(row, sources, false)).join('')}`);
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(title)}</title><style>${style}</style></head>
@@ -52,8 +56,8 @@ export function renderHtml({ title, rows, sources }) {
 <h1>${escape(title)}</h1>
 <p><img alt="Coverage" src="${badgeUrl(percent(totals.lines))}"></p>
 <table><thead><tr><th>Metric</th><th>Coverage</th><th>Covered</th></tr></thead><tbody>${summary}</tbody></table>
-<h2>Files</h2>
-${files}
+${tests ? `<p>🧪 ${tests.tests} tests · ❌ ${tests.failures} failures · 💥 ${tests.errors} errors · ⏭️ ${tests.skipped} skipped · ⏱️ ${formatTime(tests.time)}</p>` : ''}
+${sections.join('\n')}
 </body></html>
 `;
 }

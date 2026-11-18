@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   actions: read
 
@@ -31,9 +31,14 @@ jobs:
           --test-reporter-destination=stdout
           --test-reporter=lcov
           --test-reporter-destination=coverage/lcov.info
+          --test-reporter=junit
+          --test-reporter-destination=coverage/junit.xml
       - id: cov
         uses: ./
         with:
           lcov-file: coverage/lcov.info
-          title: Cov Comment coverage
+          junit-file: coverage/junit.xml
+          skip-covered: true
+          expand-changed-files: false
+          badge-branch: badges
       - run: echo "${{ steps.cov.outputs.report-url }}"
