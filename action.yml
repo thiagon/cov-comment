@@ -1,0 +1,66 @@
+name: Cov Comment
+description: Comment PR coverage with a badge and baseline diff, and publish an offline HTML report
+author: thiagon
+branding:
+  icon: percent
+  color: green
+
+inputs:
+  lcov-file:
+    description: Path to the lcov file
+    required: true
+  baseline-file:
+    description: Path to the baseline lcov file, enables deltas
+    default: ''
+  title:
+    description: Comment and report title
+    default: Coverage
+  minimum-coverage:
+    description: Fail when total line coverage is below this percentage
+    default: '0'
+  html-name:
+    description: File name of the HTML report, also the artifact name
+    default: coverage.html
+  github-token:
+    description: Token used to post the PR comment
+    default: ${{ github.token }}
+
+outputs:
+  total-coverage:
+    description: Total line coverage percentage
+    value: ${{ steps.report.outputs.total-coverage }}
+  report-url:
+    description: URL of the HTML report artifact
+    value: ${{ steps.upload.outputs.artifact-url }}
+
+runs:
+  using: composite
+  steps:
+    - id: report
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/src/main.js" report
+      env:
+        INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
+        INPUT_BASELINE_FILE: ${{ inputs.baseline-file }}
+        INPUT_TITLE: ${{ inputs.title }}
+        INPUT_HTML_NAME: ${{ inputs.html-name }}
+    - id: upload
+      uses: actions/upload-artifact@v7
+      with:
+        path: ${{ steps.report.outputs.html-path }}
+        archive: false
+    - shell: bash
+      run: node "$GITHUB_ACTION_PATH/src/main.js" comment
+      env:
+        INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
+        INPUT_BASELINE_FILE: ${{ inputs.baseline-file }}
+        INPUT_TITLE: ${{ inputs.title }}
+        INPUT_HTML_NAME: ${{ inputs.html-name }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPORT_URL: ${{ steps.upload.outputs.artifact-url }}
+    - shell: bash
+      run: node "$GITHUB_ACTION_PATH/src/main.js" gate
+      env:
+        INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
+        INPUT_HTML_NAME: ${{ inputs.html-name }}
+        INPUT_MINIMUM_COVERAGE: ${{ inputs.minimum-coverage }}
