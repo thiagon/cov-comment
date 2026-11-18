@@ -23,15 +23,18 @@ const classList = (initial = []) => {
 
 const element = (props = {}) => ({ classList: classList(), dataset: {}, className: '', textContent: '', value: '', ...props });
 
-function card({ name, tone = 'green', pct = '100', code = ['a', 'b'], classes = [] }) {
+function card({ name, tone = 'green', pct = '100', code = ['a', 'b'], classes = [], kinds = ['hit', 'miss'], changed = 'false' }) {
   const rows = code.map((text) => ({ querySelector: () => ({ textContent: text }) }));
   const table = { innerText: code.join('\n') };
   const self = element({
     open: false,
     id: `file-${name}`,
-    dataset: { filename: name, tone, pct },
+    dataset: { filename: name, tone, pct, changed },
     getAttribute: (key) => (key === 'data-filename' ? name : null),
-    querySelector: (selector) => (selector === 'table.source' ? table : null),
+    querySelector: (selector) => {
+      if (selector === 'table.source') return table;
+      return kinds.some((kind) => selector === `tr.${kind}`) ? {} : null;
+    },
     querySelectorAll: () => rows,
     scrollIntoView() {},
   });
@@ -41,12 +44,14 @@ function card({ name, tone = 'green', pct = '100', code = ['a', 'b'], classes = 
 
 function load(cards) {
   const ids = {};
-  for (const id of ['sidebarNav', 'searchInput', 'clearSearchBtn', 'fileCountBadge', 'emptyState', 'toast', 'toggleHeatmapBtn', 'btn-filter-all', 'btn-filter-hits', 'btn-filter-miss']) ids[id] = element();
+  for (const id of ['sidebarNav', 'searchInput', 'clearSearchBtn', 'fileCountBadge', 'emptyState', 'toast', 'toggleHeatmapBtn', 'btn-filter-all', 'btn-filter-hits', 'btn-filter-miss', 'btn-scope-changed', 'btn-scope-all']) ids[id] = element();
   ids.toast.classList = classList(['translate-y-20', 'opacity-0']);
   const created = [];
   const written = [];
   const timers = [];
+  const listeners = {};
   const document = {
+    addEventListener: (type, fn) => (listeners[type] = fn),
     body: element(),
     documentElement: element(),
     getElementById: (id) => ids[id],
@@ -55,20 +60,24 @@ function load(cards) {
       created.push(link);
       return link;
     },
-    querySelectorAll: (selector) => (selector === '.file-card:not(.hidden)' ? cards.filter((item) => !item.classList.contains('hidden')) : cards),
+    querySelectorAll: (selector) => {
+      if (selector === '.file-card:not(.hidden)') return cards.filter((item) => !item.classList.contains('hidden'));
+      return selector.includes('tr.miss') ? [] : cards;
+    },
   };
   ids.sidebarNav.appendChild = (child) => ids.sidebarNav.children.push(child);
   ids.sidebarNav.children = [];
   const context = {
     document,
-    window: {},
+    window: { location: { hash: '' } },
     lucide: { createIcons() {} },
     navigator: { clipboard: { writeText: (text) => (written.push(text), Promise.resolve()) } },
     setTimeout: (fn) => timers.push(fn),
   };
   vm.createContext(context);
   vm.runInContext(script, context);
-  return { context, ids, document, created, written, timers };
+  ids['toast-msg'] = element();
+  return { context, ids, document, created, written, timers, listeners };
 }
 
 test('window load builds the sidebar from each card tone and percentage', () => {
@@ -163,4 +172,124 @@ test('theme toggle flips the dark class', () => {
   assert.ok(document.documentElement.classList.contains('dark'));
   context.toggleTheme();
   assert.ok(!document.documentElement.classList.contains('dark'));
+});
+
+test('keyboard shortcuts: n jumps to the next uncovered line, / focuses the search, typing is left alone', () => {
+  const { context, ids, listeners, document, timers } = load([card({ name: 'a' })]);
+  context.window.onload();
+  const press = (key, extra = {}) => {
+    let prevented = false;
+    listeners.keydown({ key, preventDefault: () => (prevented = true), ...extra });
+    return prevented;
+  };
+  let focused = false;
+  ids.searchInput.focus = () => (focused = true);
+  assert.ok(press('/') && focused);
+  assert.ok(press('n'));
+  assert.match(ids['toast-msg'].textContent, /no uncovered lines/);
+  assert.ok(!ids.toast.classList.contains('opacity-0'));
+  timers[0]();
+  assert.ok(press('p'));
+  let blurred = false;
+  document.activeElement = { tagName: 'INPUT', blur: () => (blurred = true) };
+  assert.equal(press('n'), false);
+  press('Escape');
+  assert.ok(blurred);
+});
+
+test('the line filter hides files with no lines of that kind and keeps the counter and search in sync', () => {
+  const cards = [
+    card({ name: 'full.js', code: ['x'], kinds: ['hit'] }),
+    card({ name: 'gaps.js', code: ['y'], kinds: ['hit', 'miss'] }),
+    card({ name: 'dead.js', code: ['z'], kinds: ['miss'] }),
+  ];
+  const { context, ids } = load(cards);
+  const hidden = () => cards.map((item) => item.classList.contains('hidden'));
+  context.setLineFilter('miss');
+  assert.deepEqual(hidden(), [true, false, false]);
+  assert.equal(ids.fileCountBadge.textContent, 2);
+  context.setLineFilter('hits');
+  assert.deepEqual(hidden(), [false, false, true]);
+  ids.searchInput.value = 'gaps';
+  context.filterFiles();
+  assert.deepEqual(hidden(), [true, false, true]);
+  context.setLineFilter('miss');
+  ids.searchInput.value = 'full';
+  context.filterFiles();
+  assert.deepEqual(hidden(), [true, true, true]);
+  assert.ok(!ids.emptyState.classList.contains('hidden'));
+  context.setLineFilter('all');
+  ids.searchInput.value = '';
+  context.filterFiles();
+  assert.deepEqual(hidden(), [false, false, false]);
+  assert.equal(ids.fileCountBadge.textContent, 3);
+});
+
+test('sidebar links follow the visibility of their cards for both the line filter and the search', () => {
+  const cards = [card({ name: 'full.js', kinds: ['hit'] }), card({ name: 'gaps.js', kinds: ['hit', 'miss'] })];
+  const { context, ids, created } = load(cards);
+  context.window.onload();
+  const hidden = () => created.map((link) => link.classList.contains('hidden'));
+  assert.deepEqual(hidden(), [false, false]);
+  context.setLineFilter('miss');
+  assert.deepEqual(hidden(), [true, false]);
+  context.setLineFilter('all');
+  ids.searchInput.value = 'full';
+  context.filterFiles();
+  assert.deepEqual(hidden(), [false, true]);
+  ids.searchInput.value = '';
+  context.filterFiles();
+  assert.deepEqual(hidden(), [false, false]);
+});
+
+test('sorting keeps the active line filter, search and sidebar order', () => {
+  const full = card({ name: 'full.js', pct: '100', kinds: ['hit'] });
+  const gaps = card({ name: 'gaps.js', pct: '50', kinds: ['hit', 'miss'] });
+  const dead = card({ name: 'dead.js', pct: '0', kinds: ['miss'] });
+  const cards = [full, gaps, dead];
+  const container = { querySelectorAll: () => [...cards], appendChild: (item) => (cards.splice(cards.indexOf(item), 1), cards.push(item)) };
+  const { context, ids, created } = load(cards);
+  const original = context.document.getElementById;
+  context.document.getElementById = (id) => (id === 'filesContainer' ? container : original(id));
+  context.window.onload();
+  context.setLineFilter('miss');
+  context.sortFiles('coverage-asc');
+  assert.deepEqual(cards.map((item) => item.dataset.filename), ['dead.js', 'gaps.js', 'full.js']);
+  assert.deepEqual(cards.map((item) => item.classList.contains('hidden')), [false, false, true]);
+  const links = created.slice(-3);
+  assert.deepEqual(links.map((link) => link.classList.contains('hidden')), [false, false, true]);
+  assert.equal(ids.fileCountBadge.textContent, 2);
+  context.sortFiles('name-asc');
+  assert.deepEqual(cards.map((item) => item.dataset.filename), ['dead.js', 'full.js', 'gaps.js']);
+  context.sortFiles('coverage-desc');
+  assert.equal(cards[0].dataset.filename, 'full.js');
+  full.dataset.missed = '1';
+  gaps.dataset.missed = '5';
+  context.sortFiles('misses-desc');
+  assert.equal(cards[0].dataset.filename, 'gaps.js');
+});
+
+test('scope filter lists only changed files, starts from the page default and combines with the other filters', () => {
+  const cards = [
+    card({ name: 'a.js', changed: 'true', kinds: ['hit', 'miss'] }),
+    card({ name: 'b.js', changed: 'false', kinds: ['hit', 'miss'] }),
+    card({ name: 'c.js', changed: 'true', kinds: ['hit'] }),
+  ];
+  const { context, ids, document, created } = load(cards);
+  document.body.dataset.scope = 'changed';
+  context.window.onload();
+  const hidden = () => cards.map((item) => item.classList.contains('hidden'));
+  assert.deepEqual(hidden(), [false, true, false]);
+  assert.deepEqual(created.map((link) => link.classList.contains('hidden')), [false, true, false]);
+  assert.equal(ids.fileCountBadge.textContent, 2);
+  assert.match(ids['btn-scope-changed'].className, /bg-\[#0969da\]/);
+  assert.doesNotMatch(ids['btn-scope-all'].className, /bg-\[#0969da\]/);
+  context.setLineFilter('miss');
+  assert.deepEqual(hidden(), [false, true, true]);
+  context.setScope('all');
+  assert.deepEqual(hidden(), [false, false, true]);
+  assert.match(ids['btn-scope-all'].className, /bg-\[#0969da\]/);
+  context.setLineFilter('all');
+  assert.deepEqual(hidden(), [false, false, false]);
+  assert.equal(ids.fileCountBadge.textContent, 3);
 });
