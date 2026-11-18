@@ -477,6 +477,26 @@
       });
     }
 
+    // Expand / collapse every visible file card
+    function toggleAllDetails(open) {
+      document.querySelectorAll('.file-card:not(.hidden)').forEach((card) => {
+        card.open = open;
+      });
+    }
+
+    // Copy a file's source code to the clipboard
+    function copyFileCode(event, button) {
+      event.preventDefault();
+      event.stopPropagation();
+      const rows = button.closest('.file-card').querySelectorAll('table.source tr');
+      const code = Array.from(rows, (row) => row.querySelector('pre').textContent).join('\n');
+      navigator.clipboard.writeText(code).then(() => {
+        const toast = document.getElementById('toast');
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 1800);
+      });
+    }
+
     // Toggle Light / Dark Theme
     function toggleTheme() {
       const html = document.documentElement;
