@@ -30,17 +30,31 @@ const squares = (pct, tone) =>
     `<span class="w-2 h-2 rounded-[1px] ${index < Math.round((pct / 100) * SQUARES) ? tone.square : 'bg-[#d0d7de] dark:bg-[#30363d]'}"></span>`,
   ).join('');
 
-function renderSource(row, source) {
+function renderSource(row, source, fileId) {
   if (source == null) return '<p class="px-4 py-3 text-xs text-[#656d76] dark:text-[#7d8590]">Source not available.</p>';
   const body = source
     .split('\n')
     .map((text, index) => {
       const hits = row.lineHits.get(index + 1);
       const kind = hits === undefined ? 'none' : hits > 0 ? 'hit' : 'miss';
-      return `<tr class="${kind}"><td class="no">${index + 1}</td><td class="hits">${hits ?? ''}</td><td><pre>${escape(text)}</pre></td></tr>`;
+      return `<tr class="${kind}" id="${fileId}-L${index + 1}"><td class="no">${index + 1}</td><td class="hits">${hits ?? ''}</td><td><pre>${escape(text)}</pre></td></tr>`;
     })
     .join('');
   return `<table class="source">${body}</table>`;
+}
+
+const MAX_PILLS = 5;
+const PILL_CLASS =
+  'shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-[#ffebe9] dark:bg-[#f85149]/15 text-[#cf222e] dark:text-[#f85149] hover:underline';
+
+function missingPills(row, fileId) {
+  const shown = row.missing.slice(0, MAX_PILLS).map(([start, end]) => {
+    const label = start === end ? `L${start}` : `L${start}-${end}`;
+    return `<button type="button" onclick="jumpToLine(event, '${fileId}', ${start})" class="${PILL_CLASS}">${label}</button>`;
+  });
+  const rest = row.missing.length - MAX_PILLS;
+  if (rest > 0) shown.push(`<span class="text-[10px] text-[#656d76] dark:text-[#7d8590]">+${rest} more</span>`);
+  return shown.join(' ');
 }
 
 const CHANGED_BADGE =
@@ -49,9 +63,10 @@ const CHANGED_BADGE =
 function fileCard(row, sources, isChanged, thresholds, index) {
   const pct = percent(row.lines);
   const tone = TONES[tier(pct, thresholds)];
+  const id = `file-${index}`;
   return fill(templates.file, {
     open: isChanged ? ' open' : '',
-    id: `file-${index}`,
+    id,
     name: escape(row.path),
     pct,
     tone: tone.name,
@@ -61,7 +76,13 @@ function fileCard(row, sources, isChanged, thresholds, index) {
     changed_badge: isChanged ? CHANGED_BADGE : '',
     lines_hit: row.lines.hit,
     lines_found: row.lines.found,
-    source: renderSource(row, sources.get(row.path)),
+    missed_lines: row.lines.found - row.lines.hit,
+    missing_pills: missingPills(row, id),
+    fn_hit: row.functions.hit,
+    fn_found: row.functions.found,
+    br_hit: row.branches.hit,
+    br_found: row.branches.found,
+    source: renderSource(row, sources.get(row.path), id),
   });
 }
 

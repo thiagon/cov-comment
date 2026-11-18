@@ -151,10 +151,10 @@ test('html puts changed files first and expanded, and can hide fully covered one
 
 test('html fills every placeholder, shows the tests summary and escapes content', () => {
   const noTests = renderHtml({ title: 'T', rows, sources: new Map() });
-  assert.doesNotMatch(noTests, /\{\{\w+\}\}/);
+  assert.doesNotMatch(noTests, /\{\{\w+\}\}|>[^<]*\bundefined\b[^<]*</);
   assert.doesNotMatch(noTests, /Test Suite/);
   const withTests = renderHtml({ title: 'T', rows, sources: new Map(), tests });
-  assert.doesNotMatch(withTests, /\{\{\w+\}\}/);
+  assert.doesNotMatch(withTests, /\{\{\w+\}\}|>[^<]*\bundefined\b[^<]*</);
   assert.match(withTests, /Test Suite/);
   assert.match(withTests, /1m 5\.3s/);
   const sources = new Map([['a.js', 'if (a < b) {}\nx\ny\nz'], ['b.js', null]]);
@@ -173,4 +173,14 @@ test('html subtitle and tests card adapt to a single miss and to all tests passi
   assert.match(html, /1 miss</);
   assert.doesNotMatch(html, /1 misses/);
   assert.match(html, /text-\[#1a7f37\][^>]*>3<\/span>/);
+});
+
+test('html lists the uncovered lines as pills, ids every source line and counts functions and branches', () => {
+  const many = summarize(parseLcov(`SF:m.js\n${[1, 3, 5, 7, 9, 11, 12].map((n) => `DA:${n},0`).join('\n')}\nDA:2,1\nFNF:2\nFN:1,f\nFNDA:1,f\nBRDA:1,0,0,1\nBRDA:1,0,1,0\nend_of_record\n`));
+  const html = renderHtml({ title: 'T', rows: many, sources: new Map([['m.js', 'a\nb\nc']]) });
+  assert.match(html, /data-missed="7"/);
+  assert.match(html, /jumpToLine\(event, 'file-0', 1\)[^>]*>L1</);
+  assert.match(html, /\+1 more/);
+  assert.match(html, /<tr class="miss" id="file-0-L1">/);
+  assert.match(html, /· 1\/1 fn · 1\/2 br/);
 });
