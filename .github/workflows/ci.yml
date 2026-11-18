@@ -38,7 +38,7 @@ jobs:
         with:
           lcov-file: coverage/lcov.info
           junit-file: coverage/junit.xml
-          hide-fully-covered: true
+          skip-covered: true
           expand-changed-files: false
           badge-branch: badges
       - run: echo "${{ steps.cov.outputs.report-url }}"

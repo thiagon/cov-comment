@@ -1,6 +1,6 @@
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildAnnotations } from './annotations.js';
+import { buildAnnotations, parseAnnotationType } from './annotations.js';
 import { listChangedFiles, upsertComment } from './comment.js';
 import { renderHtml } from './html.js';
 import { appendPoint, readHistory } from './history.js';
@@ -11,7 +11,7 @@ import { badgeJson, MARKER, parseThresholds, renderMarkdown } from './render.js'
 const env = process.env;
 const root = process.cwd();
 const outDir = join(env.RUNNER_TEMP ?? root, 'cov-comment');
-const htmlPath = join(outDir, env.INPUT_HTML_NAME);
+const htmlPath = join(outDir, env.INPUT_ARTIFACT_NAME);
 const tempRoot = env.RUNNER_TEMP ?? root;
 const baselineDir = join(tempRoot, 'cov-comment-baseline');
 const historyFile = join(baselineDir, 'history.json');
@@ -29,7 +29,7 @@ const repository = env.GITHUB_REPOSITORY;
 const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
 const sha = pull?.head.sha ?? env.GITHUB_SHA;
 const canComment = Boolean(pull && env.INPUT_GITHUB_TOKEN);
-const hideFullyCovered = env.INPUT_HIDE_FULLY_COVERED === 'true';
+const skipCovered = env.INPUT_SKIP_COVERED === 'true';
 const fetchChanged = () =>
   canComment ? listChangedFiles({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number }) : null;
 
@@ -40,7 +40,7 @@ const commands = {
     const changed = await fetchChanged();
     const sources = new Map(rows.map((row) => [row.path, existsSync(row.path) ? readFileSync(row.path, 'utf8') : null]));
     mkdirSync(outDir, { recursive: true });
-    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources, changed, tests, hideFullyCovered }));
+    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources, changed, tests, skipCovered }));
     setOutput('html-path', htmlPath);
     setOutput('total-coverage', totalLines.toFixed(2));
   },
@@ -56,7 +56,8 @@ const commands = {
       thresholds: parseThresholds(env.INPUT_THRESHOLDS),
       history: previousHistory(),
       tests,
-      hideFullyCovered,
+      skipCovered,
+      maxFiles: Number(env.INPUT_MAX_FILES_IN_COMMENT) || undefined,
       expandChanged: env.INPUT_EXPAND_CHANGED_FILES !== 'false',
       blobUrl: sha ? `${server}/${repository}/blob/${sha}` : null,
       commit: sha ? { sha, url: `${server}/${repository}/commit/${sha}` } : null,
@@ -64,7 +65,14 @@ const commands = {
         ? { label: `${env.GITHUB_WORKFLOW} #${env.GITHUB_RUN_NUMBER}`, url: `${server}/${repository}/actions/runs/${env.GITHUB_RUN_ID}` }
         : null,
     });
-    if (env.INPUT_ANNOTATIONS !== 'false') buildAnnotations({ rows, changed, tests, root }).forEach((line) => console.log(line));
+    buildAnnotations({
+      rows,
+      changed,
+      tests,
+      root,
+      missingLines: env.INPUT_ANNOTATE_MISSING_LINES !== 'false',
+      type: parseAnnotationType(env.INPUT_ANNOTATION_TYPE),
+    }).forEach((line) => console.log(line));
     if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${body}\n`);
     if (!canComment) return;
     await upsertComment({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number, body, marker: MARKER });

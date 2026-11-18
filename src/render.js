@@ -5,7 +5,6 @@ import { isFullyCovered, percent, total } from './lcov.js';
 export const MARKER = '<!-- cov-comment -->';
 export const DEFAULT_THRESHOLDS = [90, 70];
 
-const MAX_FILES = 100;
 const TIER_EMOJI = { brightgreen: '🟢', yellow: '🟡', red: '🔴' };
 
 export const tier = (pct, [green, yellow] = DEFAULT_THRESHOLDS) => (pct >= green ? 'brightgreen' : pct >= yellow ? 'yellow' : 'red');
@@ -85,7 +84,8 @@ export function renderMarkdown({
   blobUrl,
   tests = null,
   history = [],
-  hideFullyCovered = false,
+  skipCovered = false,
+  maxFiles = 100,
   expandChanged = true,
   thresholds = DEFAULT_THRESHOLDS,
 }) {
@@ -120,12 +120,12 @@ export function renderMarkdown({
   }
 
   const rest = changed ? ordered.filter((row) => !changed.has(row.path)) : ordered;
-  const listed = hideFullyCovered ? rest.filter((row) => !isFullyCovered(row)) : rest;
+  const listed = skipCovered ? rest.filter((row) => !isFullyCovered(row)) : rest;
   const hidden = rest.length - listed.length;
   if (listed.length) {
     const count = hidden ? `${listed.length}, ${hidden} fully covered hidden` : `${listed.length}`;
-    out.push('', `<details><summary>🗂️ ${changed ? 'Other' : 'All'} files (${count})</summary>`, '', ...fileTable(listed.slice(0, MAX_FILES), basePaths, thresholds, blobUrl));
-    if (listed.length > MAX_FILES) out.push('', `_${listed.length - MAX_FILES} more files in the full report._`);
+    out.push('', `<details><summary>🗂️ ${changed ? 'Other' : 'All'} files (${count})</summary>`, '', ...fileTable(listed.slice(0, maxFiles), basePaths, thresholds, blobUrl));
+    if (listed.length > maxFiles) out.push('', `_${listed.length - maxFiles} more files in the full report._`);
     out.push('', '</details>');
   }
 

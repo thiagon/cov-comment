@@ -38,14 +38,14 @@ summary .name { flex: 1; font-family: monospace; }
 const fileBlock = (row, sources, open) =>
   `<details${open ? ' open' : ''}><summary><span class="name">${escape(row.path)}</span><span>${formatPercent(percent(row.lines))}</span><span class="muted">${escape(formatRanges(row.missing))}</span></summary>${renderSource(row, sources.get(row.path))}</details>`;
 
-export function renderHtml({ title, rows, sources, changed = null, tests = null, hideFullyCovered = false }) {
+export function renderHtml({ title, rows, sources, changed = null, tests = null, skipCovered = false }) {
   const totals = total(rows);
   const summary = ['lines', 'functions', 'branches']
     .map((kind) => `<tr><td>${kind}</td><td>${formatPercent(percent(totals[kind]))}</td><td>${totals[kind].hit}/${totals[kind].found}</td></tr>`)
     .join('');
   const ordered = [...rows].sort((a, b) => percent(a.lines) - percent(b.lines));
   const touched = changed ? ordered.filter((row) => changed.has(row.path)) : [];
-  const others = ordered.filter((row) => !changed?.has(row.path) && !(hideFullyCovered && isFullyCovered(row)));
+  const others = ordered.filter((row) => !changed?.has(row.path) && !(skipCovered && isFullyCovered(row)));
   const sections = [];
   if (changed) sections.push(`<h2>Changed files</h2>${touched.map((row) => fileBlock(row, sources, true)).join('') || '<p class="muted">No coverage data for changed files.</p>'}`);
   if (others.length) sections.push(`<h2>${changed ? 'Other files' : 'Files'}</h2>${others.map((row) => fileBlock(row, sources, false)).join('')}`);

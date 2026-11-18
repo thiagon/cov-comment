@@ -10,12 +10,12 @@ inputs:
     description: Path to the lcov file
     required: true
   junit-file:
-    description: Path to a JUnit XML test report, adds the tests table with execution time and the failed test annotations
+    description: Path to a JUnit XML test report, adds the tests table with execution time and annotates failed tests
     default: ''
   baseline-file:
     description: Path to a baseline lcov file, overrides the automatic baseline
     default: ''
-  baseline-branch:
+  default-branch:
     description: Branch whose latest successful run provides the baseline and the history
     default: main
   title:
@@ -27,19 +27,25 @@ inputs:
   thresholds:
     description: Green and yellow cutoffs in percent, as green,yellow
     default: '90,70'
-  hide-fully-covered:
+  skip-covered:
     description: Hide files with 100% coverage from the all files list and the HTML report, changed files are always listed
     default: 'false'
+  max-files-in-comment:
+    description: Maximum number of files listed in each table of the comment
+    default: '100'
   expand-changed-files:
     description: Start the changed files section of the comment expanded, set false to start collapsed
     default: 'true'
-  annotations:
-    description: Annotate failed tests and uncovered lines of changed files, at most 10 of each kind
+  annotate-missing-lines:
+    description: Annotate the uncovered lines of changed files in the PR, at most 10
     default: 'true'
+  annotation-type:
+    description: Level of the uncovered lines annotations, notice, warning or error
+    default: warning
   badge-branch:
     description: Branch that receives coverage.json for a shields endpoint badge on pushes to the baseline branch, empty disables it
     default: ''
-  html-name:
+  artifact-name:
     description: File name of the HTML report, also the artifact name
     default: coverage.html
   github-token:
@@ -58,12 +64,12 @@ runs:
   using: composite
   steps:
     - id: baseline
-      if: (github.event_name == 'pull_request' && inputs.baseline-file == '') || (github.event_name == 'push' && github.ref_name == inputs.baseline-branch)
+      if: (github.event_name == 'pull_request' && inputs.baseline-file == '') || (github.event_name == 'push' && github.ref_name == inputs.default-branch)
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
-        run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "${{ github.workflow }}" --branch "${{ inputs.baseline-branch }}" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+        run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "${{ github.workflow }}" --branch "${{ inputs.default-branch }}" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
         echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
     - if: steps.baseline.outputs.run-id != ''
       continue-on-error: true
@@ -73,25 +79,25 @@ runs:
         path: ${{ runner.temp }}/cov-comment-baseline
         run-id: ${{ steps.baseline.outputs.run-id }}
         github-token: ${{ inputs.github-token }}
-    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch
+    - if: github.event_name == 'push' && github.ref_name == inputs.default-branch
       shell: bash
       run: node "$GITHUB_ACTION_PATH/src/main.js" history
       env:
         INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
-        INPUT_HTML_NAME: ${{ inputs.html-name }}
-    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch
+        INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+    - if: github.event_name == 'push' && github.ref_name == inputs.default-branch
       uses: actions/upload-artifact@v7
       with:
         name: cov-comment-baseline
         path: ${{ runner.temp }}/cov-comment-publish
         overwrite: true
-    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch && inputs.badge-branch != ''
+    - if: github.event_name == 'push' && github.ref_name == inputs.default-branch && inputs.badge-branch != ''
       shell: bash
       env:
         TOKEN: ${{ inputs.github-token }}
         BRANCH: ${{ inputs.badge-branch }}
         INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
-        INPUT_HTML_NAME: ${{ inputs.html-name }}
+        INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
         INPUT_THRESHOLDS: ${{ inputs.thresholds }}
       run: |
         set -euo pipefail
@@ -121,8 +127,8 @@ runs:
         INPUT_JUNIT_FILE: ${{ inputs.junit-file }}
         INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
-        INPUT_HTML_NAME: ${{ inputs.html-name }}
-        INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
+        INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        INPUT_SKIP_COVERED: ${{ inputs.skip-covered }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
     - id: upload
       uses: actions/upload-artifact@v7
@@ -136,16 +142,18 @@ runs:
         INPUT_JUNIT_FILE: ${{ inputs.junit-file }}
         INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
-        INPUT_HTML_NAME: ${{ inputs.html-name }}
+        INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
         INPUT_THRESHOLDS: ${{ inputs.thresholds }}
-        INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
+        INPUT_SKIP_COVERED: ${{ inputs.skip-covered }}
         INPUT_EXPAND_CHANGED_FILES: ${{ inputs.expand-changed-files }}
-        INPUT_ANNOTATIONS: ${{ inputs.annotations }}
+        INPUT_ANNOTATE_MISSING_LINES: ${{ inputs.annotate-missing-lines }}
+        INPUT_ANNOTATION_TYPE: ${{ inputs.annotation-type }}
+        INPUT_MAX_FILES_IN_COMMENT: ${{ inputs.max-files-in-comment }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         REPORT_URL: ${{ steps.upload.outputs.artifact-url }}
     - shell: bash
       run: node "$GITHUB_ACTION_PATH/src/main.js" gate
       env:
         INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
-        INPUT_HTML_NAME: ${{ inputs.html-name }}
+        INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
         INPUT_MINIMUM_COVERAGE: ${{ inputs.minimum-coverage }}

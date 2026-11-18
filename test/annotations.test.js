@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildAnnotations } from '../src/annotations.js';
+import { buildAnnotations, parseAnnotationType } from '../src/annotations.js';
 import { parseLcov, summarize } from '../src/lcov.js';
 
 const rows = summarize(parseLcov('SF:a.js\nDA:1,1\nDA:2,0\nDA:4,0\nDA:5,0\nend_of_record\nSF:b.js\nDA:1,0\nend_of_record\n'));
@@ -31,4 +31,18 @@ test('caps each kind of annotation', () => {
   assert.equal(lines.filter((line) => line.startsWith('::error')).length, 10);
   assert.equal(lines.filter((line) => line.startsWith('::warning')).length, 10);
   assert.equal(buildAnnotations({ rows, changed: null, tests: { cases }, root: '/w', max: 3 }).length, 3);
+});
+
+test('uncovered lines can use another level or be turned off', () => {
+  const changed = new Set(['a.js']);
+  assert.ok(buildAnnotations({ rows, changed, tests: null, root: '/w', type: 'notice' }).every((line) => line.startsWith('::notice ')));
+  assert.deepEqual(buildAnnotations({ rows, changed, tests: null, root: '/w', missingLines: false }), []);
+  const failing = { cases: [failure('one')] };
+  assert.equal(buildAnnotations({ rows, changed, tests: failing, root: '/w', missingLines: false }).length, 1);
+});
+
+test('annotation type falls back to warning', () => {
+  assert.equal(parseAnnotationType('error'), 'error');
+  assert.equal(parseAnnotationType('loud'), 'warning');
+  assert.equal(parseAnnotationType(undefined), 'warning');
 });

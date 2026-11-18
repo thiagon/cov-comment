@@ -83,11 +83,12 @@ test('markdown with only a commit and truncating long file lists', () => {
   const many = Array.from({ length: 101 }, (_, i) => ({ ...rows[0], path: `f${i}.js` }));
   const body = renderMarkdown({ title: 'T', rows: many, baseRows: null, commit: { sha: 'abcdef1234', url: 'u' } });
   assert.match(body, /1 more files/);
+  assert.match(renderMarkdown({ title: 'T', rows: many, baseRows: null, maxFiles: 99 }), /2 more files/);
   assert.match(body, /^Commit \[`abcdef1`\]\(u\)$/m);
 });
 
 test('hides fully covered files from the all files list but keeps changed ones', () => {
-  const body = renderMarkdown({ title: 'T', rows, baseRows: null, changed: new Set(['b.js']), hideFullyCovered: true });
+  const body = renderMarkdown({ title: 'T', rows, baseRows: null, changed: new Set(['b.js']), skipCovered: true });
   const [changedPart, allPart] = body.split('<details><summary>🗂️');
   assert.match(changedPart, /b\.js/);
   assert.match(allPart, /Other files \(1, 1 fully covered hidden\)/);
@@ -101,7 +102,7 @@ test('lists every file as all files when there is no pull request', () => {
 
 test('omits the all files list when everything is hidden', () => {
   const full = rows.filter((row) => row.path !== 'a.js');
-  const body = renderMarkdown({ title: 'T', rows: full, baseRows: null, hideFullyCovered: true });
+  const body = renderMarkdown({ title: 'T', rows: full, baseRows: null, skipCovered: true });
   assert.doesNotMatch(body, /All files/);
 });
 
@@ -140,12 +141,12 @@ test('markdown shows the tests table after the coverage sections', () => {
 
 test('html puts changed files first and expanded, and can hide fully covered ones', () => {
   const sources = new Map();
-  const html = renderHtml({ title: 'T', rows, sources, changed: new Set(['b.js']), hideFullyCovered: true });
+  const html = renderHtml({ title: 'T', rows, sources, changed: new Set(['b.js']), skipCovered: true });
   assert.match(html, /<h2>Changed files<\/h2><details open>.*b\.js/);
   assert.match(html, /<h2>Other files<\/h2>/);
   assert.doesNotMatch(html, /c\.js/);
   assert.match(renderHtml({ title: 'T', rows, sources, changed: new Set() }), /No coverage data for changed files/);
-  assert.doesNotMatch(renderHtml({ title: 'T', rows: [rows[1]], sources, hideFullyCovered: true }), /<h2>/);
+  assert.doesNotMatch(renderHtml({ title: 'T', rows: [rows[1]], sources, skipCovered: true }), /<h2>/);
 });
 
 test('html shows the tests summary and is self-contained', () => {
