@@ -2,12 +2,12 @@
 
 ## Repository settings
 
-Import the rulesets in `.github/rulesets/` under Settings, Rules, Rulesets, New ruleset, Import a ruleset:
+The repository is private on a plan without rulesets, so none are configured yet. Once it is public, create these under Settings, Rules, Rulesets:
 
-- `protect-main.json`: pull request required, squash only, linear history, the `test` check must pass on an up to date branch, no force push and no deletion, and no bypass actors.
-- `protect-release-tags.json`: semver tags (`v1.2.3`) cannot be moved or deleted. The moving major tag (`v1`) is not covered on purpose.
+- Default branch: pull request required, squash only, linear history, the `test` check must pass on an up to date branch, no force push, no deletion and no bypass actors.
+- Tags `v*.*.*`: cannot be moved or deleted. The moving major tag (`v0`, `v1`) is not covered on purpose.
 
-Recommended settings besides the rulesets:
+Recommended settings besides the rules:
 
 - Merge commits and rebase merges disabled, squash merge only with the PR title as commit message, delete branch on merge.
 - Secret scanning with push protection, Dependabot alerts and security updates, private vulnerability reporting.
