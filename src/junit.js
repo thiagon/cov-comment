@@ -1,6 +1,10 @@
-const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'", '&#39;': "'" };
+const NAMED = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
-const decode = (value) => value.replace(/&(?:amp|lt|gt|quot|apos|#39);/g, (entity) => ENTITIES[entity]);
+const decode = (value) =>
+  value
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&(amp|lt|gt|quot|apos);/g, (_, name) => NAMED[name]);
 
 const rawAttr = (tag, name) => {
   const match = new RegExp(`\\s${name}="([^"]*)"`).exec(tag);

@@ -26,6 +26,11 @@ test('derives counts and details from testcases, decoding entities', () => {
   assert.equal(cases[4].message, '');
 });
 
+test('decodes numeric character references without double decoding', () => {
+  const xml = '<testsuites><testcase name="n"><failure message="a&#10;b &#x41; &amp;#10;"/></testcase></testsuites>';
+  assert.equal(parseJunit(xml).cases[0].message, 'a\nb A &#10;');
+});
+
 test('prefers the node duration comment over summed times', () => {
   const xml = '<testsuites>\n<testcase name="a" time="0.1"/>\n<!-- duration_ms 216.5 -->\n</testsuites>';
   assert.equal(parseJunit(xml).time, 0.2165);
