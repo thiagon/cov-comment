@@ -1,4 +1,4 @@
-import { percent, total } from './lcov.js';
+import { isFullyCovered, percent, total } from './lcov.js';
 
 export const MARKER = '<!-- cov-comment -->';
 export const DEFAULT_THRESHOLDS = [90, 70];
@@ -75,6 +75,7 @@ export function renderMarkdown({
   commit,
   run,
   blobUrl,
+  hideFullyCovered = false,
   thresholds = DEFAULT_THRESHOLDS,
   emojis = DEFAULT_EMOJIS,
 }) {
@@ -85,11 +86,6 @@ export function renderMarkdown({
   const ordered = [...rows].sort((a, b) => percent(a.lines) - percent(b.lines));
 
   const out = [MARKER, `### 📊 ${title}`, '', `![Coverage](${badgeUrl(percent(totals.lines), thresholds)})`];
-
-  const origin = [];
-  if (commit) origin.push(`Commit [\`${commit.sha.slice(0, 7)}\`](${commit.url})`);
-  if (run) origin.push(`[${run.label}](${run.url})`);
-  if (origin.length) out.push('', origin.join(' · '));
 
   out.push(
     '',
@@ -104,13 +100,25 @@ export function renderMarkdown({
 
   if (changed) {
     const touched = ordered.filter((row) => changed.has(row.path));
-    out.push('', '#### 📁 Changed files', '');
+    out.push('', `<details open><summary>📁 Changed files (${touched.length})</summary>`, '');
     out.push(...(touched.length ? fileTable(touched, basePaths, theme, blobUrl) : ['No coverage data for changed files.']));
+    out.push('', '</details>');
   }
 
-  out.push('', `<details><summary>🗂️ All files (${rows.length})</summary>`, '', ...fileTable(ordered.slice(0, MAX_FILES), basePaths, theme, blobUrl));
-  if (ordered.length > MAX_FILES) out.push('', `_${ordered.length - MAX_FILES} more files in the full report._`);
-  out.push('', '</details>');
+  const listed = hideFullyCovered ? ordered.filter((row) => !isFullyCovered(row)) : ordered;
+  const hidden = ordered.length - listed.length;
+  if (listed.length) {
+    const count = hidden ? `${listed.length}, ${hidden} fully covered hidden` : `${listed.length}`;
+    out.push('', `<details><summary>🗂️ All files (${count})</summary>`, '', ...fileTable(listed.slice(0, MAX_FILES), basePaths, theme, blobUrl));
+    if (listed.length > MAX_FILES) out.push('', `_${listed.length - MAX_FILES} more files in the full report._`);
+    out.push('', '</details>');
+  }
+
   if (reportUrl) out.push('', `📄 [Full HTML report](${reportUrl})`);
+
+  const origin = [];
+  if (commit) origin.push(`Commit [\`${commit.sha.slice(0, 7)}\`](${commit.url})`);
+  if (run) origin.push(`[${run.label}](${run.url})`);
+  if (origin.length) out.push('', origin.join(' · '));
   return out.join('\n');
 }

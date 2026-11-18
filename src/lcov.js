@@ -74,3 +74,5 @@ export function total(rows) {
 }
 
 export const percent = ({ found, hit }) => (found === 0 ? 100 : (hit / found) * 100);
+
+export const isFullyCovered = (row) => ['lines', 'functions', 'branches'].every((kind) => row[kind].hit === row[kind].found);

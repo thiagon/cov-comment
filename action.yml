@@ -27,6 +27,9 @@ inputs:
   emojis:
     description: Emojis for green, yellow, red and no data, as four comma separated values
     default: 🟢,🟡,🔴,⚪
+  hide-fully-covered:
+    description: Hide files with 100% coverage from the all files list and the HTML report, changed files are always listed
+    default: 'false'
   html-name:
     description: File name of the HTML report, also the artifact name
     default: coverage.html
@@ -80,6 +83,8 @@ runs:
         INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_HTML_NAME: ${{ inputs.html-name }}
+        INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
     - id: upload
       uses: actions/upload-artifact@v7
       with:
@@ -94,6 +99,7 @@ runs:
         INPUT_HTML_NAME: ${{ inputs.html-name }}
         INPUT_THRESHOLDS: ${{ inputs.thresholds }}
         INPUT_EMOJIS: ${{ inputs.emojis }}
+        INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         REPORT_URL: ${{ steps.upload.outputs.artifact-url }}
     - shell: bash

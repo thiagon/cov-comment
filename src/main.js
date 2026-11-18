@@ -15,27 +15,30 @@ const rows = load(env.INPUT_LCOV_FILE);
 const baseRows = env.INPUT_BASELINE_FILE && existsSync(env.INPUT_BASELINE_FILE) ? load(env.INPUT_BASELINE_FILE) : null;
 const totalLines = percent(total(rows).lines);
 
+const event = env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')) : {};
+const pull = event.pull_request;
+const repository = env.GITHUB_REPOSITORY;
+const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
+const sha = pull?.head.sha ?? env.GITHUB_SHA;
+const canComment = Boolean(pull && env.INPUT_GITHUB_TOKEN);
+const hideFullyCovered = env.INPUT_HIDE_FULLY_COVERED === 'true';
+const fetchChanged = () =>
+  canComment ? listChangedFiles({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number }) : null;
+
 const setOutput = (key, value) => env.GITHUB_OUTPUT && appendFileSync(env.GITHUB_OUTPUT, `${key}=${value}\n`);
 
 const commands = {
-  report() {
+  async report() {
+    const changed = await fetchChanged();
     const sources = new Map(rows.map((row) => [row.path, existsSync(row.path) ? readFileSync(row.path, 'utf8') : null]));
     mkdirSync(outDir, { recursive: true });
-    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources }));
+    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources, changed, hideFullyCovered }));
     setOutput('html-path', htmlPath);
     setOutput('total-coverage', totalLines.toFixed(2));
   },
 
   async comment() {
-    const event = env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')) : {};
-    const pull = event.pull_request;
-    const repository = env.GITHUB_REPOSITORY;
-    const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
-    const sha = pull?.head.sha ?? env.GITHUB_SHA;
-    const canComment = Boolean(pull && env.INPUT_GITHUB_TOKEN);
-    const changed = canComment
-      ? await listChangedFiles({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number })
-      : null;
+    const changed = await fetchChanged();
     const body = renderMarkdown({
       title: env.INPUT_TITLE,
       rows,
@@ -44,6 +47,7 @@ const commands = {
       changed,
       thresholds: parseThresholds(env.INPUT_THRESHOLDS),
       emojis: parseEmojis(env.INPUT_EMOJIS),
+      hideFullyCovered,
       blobUrl: sha ? `${server}/${repository}/blob/${sha}` : null,
       commit: sha ? { sha, url: `${server}/${repository}/commit/${sha}` } : null,
       run: env.GITHUB_RUN_ID

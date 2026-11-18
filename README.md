@@ -31,6 +31,7 @@ steps:
 | `thresholds` | `90,70` | Green and yellow cutoffs in percent, used for the emojis and the badge color |
 | `minimum-coverage` | `0` | Fail when total line coverage is below this value |
 | `emojis` | `🟢,🟡,🔴,⚪` | Emojis for green, yellow, red and no data |
+| `hide-fully-covered` | `false` | Hide 100% files from the all files list and the HTML report; changed files are always listed |
 | `html-name` | `coverage.html` | HTML report file name, also used as the artifact name |
 | `github-token` | `github.token` | Token used to post the comment |
 

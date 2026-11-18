@@ -55,8 +55,10 @@ test('markdown shows before, after, delta, origin and legend', () => {
   assert.match(body, /\| 🔧 Functions \| 100\.0% \| ➖ n\/a \|  \| 0\/0 \|/);
   assert.match(body, /\| \[a\.js\]\(https:\/\/x\/blob\/abc\/a\.js\) \| 66\.7% \| ❌ 33\.3% \| ▼ -33\.3 \| \[2-3\]\(https:\/\/x\/blob\/abc\/a\.js#L2-L3\) \|/);
   assert.match(body, /\| \[b\.js\]\(https:\/\/x\/blob\/abc\/b\.js\) \| — \| ✅ 100\.0% \|  \|/);
-  assert.match(body, /#### 📁 Changed files[\s\S]*a\.js[\s\S]*<details>/);
-  assert.doesNotMatch(body.split('<details>')[0], /c\.js/);
+  assert.match(body, /<details open><summary>📁 Changed files \(2\)<\/summary>[\s\S]*a\.js[\s\S]*<details><summary>🗂️ All files \(3\)/);
+  assert.ok(body.trimEnd().endsWith('[ci #4](https://x/run)'));
+  assert.ok(body.indexOf('Full HTML report') < body.indexOf('Commit ['));
+  assert.doesNotMatch(body.split('<details><summary>🗂️')[0], /c\.js/);
   assert.doesNotMatch(body, /below|no data/);
   assert.match(body, /📄 \[Full HTML report\]\(https:\/\/x\/report\)/);
 });
@@ -76,11 +78,36 @@ test('markdown without baseline, origin or link', () => {
   assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null }), /Changed files/);
 });
 
+test('hides fully covered files from the all files list but keeps changed ones', () => {
+  const body = renderMarkdown({ title: 'T', rows, baseRows: null, changed: new Set(['b.js']), hideFullyCovered: true });
+  const [changedPart, allPart] = body.split('<details><summary>🗂️');
+  assert.match(changedPart, /b\.js/);
+  assert.match(allPart, /All files \(1, 2 fully covered hidden\)/);
+  assert.doesNotMatch(allPart, /b\.js|c\.js/);
+  assert.match(allPart, /a\.js/);
+});
+
+test('omits the all files list when everything is hidden', () => {
+  const full = rows.filter((row) => row.path !== 'a.js');
+  const body = renderMarkdown({ title: 'T', rows: full, baseRows: null, hideFullyCovered: true });
+  assert.doesNotMatch(body, /All files/);
+});
+
 test('markdown with only a commit and truncating long file lists', () => {
   const many = Array.from({ length: 101 }, (_, i) => ({ ...rows[0], path: `f${i}.js` }));
   const body = renderMarkdown({ title: 'T', rows: many, baseRows: null, commit: { sha: 'abcdef1234', url: 'u' } });
   assert.match(body, /1 more files/);
   assert.match(body, /^Commit \[`abcdef1`\]\(u\)$/m);
+});
+
+test('html puts changed files first and expanded, and can hide fully covered ones', () => {
+  const sources = new Map();
+  const html = renderHtml({ title: 'T', rows, sources, changed: new Set(['b.js']), hideFullyCovered: true });
+  assert.match(html, /<h2>Changed files<\/h2><details open>.*b\.js/);
+  assert.match(html, /<h2>Other files<\/h2>/);
+  assert.doesNotMatch(html, /c\.js/);
+  assert.match(renderHtml({ title: 'T', rows, sources, changed: new Set() }), /No coverage data for changed files/);
+  assert.doesNotMatch(renderHtml({ title: 'T', rows: [rows[1]], sources, hideFullyCovered: true }), /<h2>/);
 });
 
 test('html is self-contained and escapes source', () => {
