@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderHtml } from '../src/html.js';
-import { formatTime, parseJunit } from '../src/junit.js';
 import { parseLcov, summarize } from '../src/lcov.js';
-import { badgeUrl, formatDelta, formatRanges, MARKER, parseEmojis, parseThresholds, renderMarkdown, tier } from '../src/render.js';
+import { badgeJson, badgeUrl, formatDelta, formatRanges, MARKER, parseThresholds, renderMarkdown, tier } from '../src/render.js';
 
 const rows = summarize(parseLcov('SF:a.js\nDA:1,1\nDA:2,0\nDA:3,0\nend_of_record\nSF:b.js\nDA:1,1\nend_of_record\nSF:c.js\nDA:1,1\nDA:2,1\nend_of_record\n'));
 const baseline = summarize(parseLcov('SF:a.js\nDA:1,1\nDA:2,1\nDA:3,0\nFN:1,f\nFNDA:1,f\nend_of_record\nSF:c.js\nDA:1,1\nDA:2,1\nend_of_record\n'));
@@ -14,6 +13,7 @@ test('badge color follows thresholds', () => {
   assert.equal(tier(10), 'red');
   assert.equal(tier(60, [50, 40]), 'brightgreen');
   assert.equal(badgeUrl(66.6), 'https://img.shields.io/badge/Coverage-67%25-red');
+  assert.deepEqual(badgeJson(97.4, [95, 80]), { schemaVersion: 1, label: 'coverage', message: '97%', color: 'brightgreen' });
 });
 
 test('thresholds parsing falls back to defaults', () => {
@@ -21,12 +21,6 @@ test('thresholds parsing falls back to defaults', () => {
   assert.deepEqual(parseThresholds('50,80'), [90, 70]);
   assert.deepEqual(parseThresholds('abc'), [90, 70]);
   assert.deepEqual(parseThresholds('90'), [90, 70]);
-});
-
-test('emojis parsing falls back to defaults', () => {
-  assert.deepEqual(parseEmojis('✅, ⚠️, ❌, ➖'), ['✅', '⚠️', '❌', '➖']);
-  assert.deepEqual(parseEmojis('a,b,c'), ['🟢', '🟡', '🔴', '⚪']);
-  assert.deepEqual(parseEmojis('a,b,c,'), ['🟢', '🟡', '🔴', '⚪']);
 });
 
 test('delta formatting', () => {
@@ -37,7 +31,7 @@ test('delta formatting', () => {
   assert.equal(formatRanges([[1, 1], [3, 5]]), '1, 3-5');
 });
 
-test('markdown shows before, after, delta, origin and legend', () => {
+test('markdown shows before, after, delta, statements, origin last and custom thresholds', () => {
   const body = renderMarkdown({
     title: 'Coverage Report',
     rows,
@@ -47,21 +41,21 @@ test('markdown shows before, after, delta, origin and legend', () => {
     commit: { sha: 'abcdef123456', url: 'https://x/commit' },
     run: { label: 'ci #4', url: 'https://x/run' },
     blobUrl: 'https://x/blob/abc',
-    emojis: ['✅', '⚠️', '❌', '➖'],
+    thresholds: [95, 60],
   });
   assert.ok(body.startsWith(MARKER));
   assert.match(body, /### 📊 Coverage Report/);
-  assert.match(body, /Commit \[`abcdef1`\]\(https:\/\/x\/commit\) · \[ci #4\]\(https:\/\/x\/run\)/);
-  assert.match(body, /\| 📈 Lines \| 80.0% \| ❌ 66\.7% \| ▼ -13\.3 \| 4\/6 \|/);
-  assert.match(body, /\| 🔧 Functions \| 100\.0% \| ➖ n\/a \|  \| 0\/0 \|/);
-  assert.match(body, /\| \[a\.js\]\(https:\/\/x\/blob\/abc\/a\.js\) \| 66\.7% \| ❌ 33\.3% \| ▼ -33\.3 \| \[2-3\]\(https:\/\/x\/blob\/abc\/a\.js#L2-L3\) \|/);
-  assert.match(body, /\| \[b\.js\]\(https:\/\/x\/blob\/abc\/b\.js\) \| — \| ✅ 100\.0% \|  \|/);
+  assert.match(body, /\| 📈 Lines \| 80\.0% \| 🟡 66\.7% \| ▼ -13\.3 \| 4\/6 \|/);
+  assert.match(body, /\| 🔧 Functions \| 100\.0% \| ⚪ n\/a \|  \| 0\/0 \|/);
+  assert.match(body, /\| 🌿 Branches \| — \| ⚪ n\/a \|/);
+  assert.match(body, /\| \[a\.js\]\(https:\/\/x\/blob\/abc\/a\.js\) \| 3 \| 2 \| 66\.7% \| 🔴 33\.3% \| ▼ -33\.3 \| \[2-3\]\(https:\/\/x\/blob\/abc\/a\.js#L2-L3\) \|/);
+  assert.match(body, /\| \[b\.js\]\(https:\/\/x\/blob\/abc\/b\.js\) \| 1 \| 0 \| — \| 🟢 100\.0% \|  \|/);
   assert.match(body, /<details open><summary>📁 Changed files \(2\)<\/summary>[\s\S]*a\.js[\s\S]*<details><summary>🗂️ All files \(3\)/);
-  assert.ok(body.trimEnd().endsWith('[ci #4](https://x/run)'));
-  assert.ok(body.indexOf('Full HTML report') < body.indexOf('Commit ['));
   assert.doesNotMatch(body.split('<details><summary>🗂️')[0], /c\.js/);
   assert.doesNotMatch(body, /below|no data/);
-  assert.match(body, /📄 \[Full HTML report\]\(https:\/\/x\/report\)/);
+  assert.ok(body.trimEnd().endsWith('[ci #4](https://x/run)'));
+  assert.ok(body.indexOf('Full HTML report') < body.indexOf('Commit ['));
+  assert.match(body, /Commit \[`abcdef1`\]\(https:\/\/x\/commit\) · \[ci #4\]/);
 });
 
 test('markdown links single missing lines and encodes paths', () => {
@@ -75,8 +69,15 @@ test('markdown without baseline, origin or link', () => {
   const body = renderMarkdown({ title: 'T', rows, baseRows: null, changed: new Set(['zzz.js']) });
   assert.match(body, /No coverage data for changed files/);
   assert.match(body, /\| 📈 Lines \| — \|/);
-  assert.doesNotMatch(body, /Commit \[|Full HTML report/);
+  assert.doesNotMatch(body, /Commit \[|Full HTML report|Trend/);
   assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null }), /Changed files/);
+});
+
+test('markdown with only a commit and truncating long file lists', () => {
+  const many = Array.from({ length: 101 }, (_, i) => ({ ...rows[0], path: `f${i}.js` }));
+  const body = renderMarkdown({ title: 'T', rows: many, baseRows: null, commit: { sha: 'abcdef1234', url: 'u' } });
+  assert.match(body, /1 more files/);
+  assert.match(body, /^Commit \[`abcdef1`\]\(u\)$/m);
 });
 
 test('hides fully covered files from the all files list but keeps changed ones', () => {
@@ -94,11 +95,45 @@ test('omits the all files list when everything is hidden', () => {
   assert.doesNotMatch(body, /All files/);
 });
 
-test('markdown with only a commit and truncating long file lists', () => {
-  const many = Array.from({ length: 101 }, (_, i) => ({ ...rows[0], path: `f${i}.js` }));
-  const body = renderMarkdown({ title: 'T', rows: many, baseRows: null, commit: { sha: 'abcdef1234', url: 'u' } });
-  assert.match(body, /1 more files/);
-  assert.match(body, /^Commit \[`abcdef1`\]\(u\)$/m);
+test('trend line needs at least two points', () => {
+  const point = (lines) => ({ lines });
+  assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null, history: [point(50)] }), /Trend/);
+  const body = renderMarkdown({ title: 'T', rows, baseRows: null, history: [point(50), point(75), point(100)] });
+  assert.match(body, /📉 Trend \(last 3 runs\): ▁▅█ 50\.0% → 100\.0%/);
+});
+
+const tests = {
+  tests: 6,
+  failures: 1,
+  errors: 1,
+  skipped: 1,
+  time: 65.25,
+  cases: [
+    { name: 'fast', classname: '', time: 0.01, status: 'passed', message: '' },
+    { name: 'slow | piped', classname: '', time: 2, status: 'passed', message: '' },
+    { name: 'bad', classname: 'suite', time: 0, status: 'failure', message: 'expected ```x``` to equal y' },
+    { name: 'broken', classname: '', time: 0, status: 'error', message: '' },
+    { name: 'skip', classname: '', time: 0, status: 'skipped', message: '' },
+  ],
+};
+
+test('markdown shows tests, failure details and slowest tests', () => {
+  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests, slowestTests: 1 });
+  assert.match(body, /#### 🧪 Tests/);
+  assert.match(body, /\| 6 \| 3 \| 1 \| 1 \| 1 \| 1m 5\.3s \|/);
+  assert.match(body, /<details open><summary>❌ Failed tests \(2\)<\/summary>/);
+  assert.match(body, /- \*\*bad\*\* \(suite\)\n\n```\nexpected '''x''' to equal y\n```/);
+  assert.match(body, /- \*\*broken\*\*\n/);
+  assert.match(body, /🐢 Slowest tests[\s\S]*\| slow \\\| piped \| 2\.00s \|/);
+  assert.doesNotMatch(body, /\| fast \|/);
+});
+
+test('markdown omits failure and slowest sections when not needed', () => {
+  const clean = { ...tests, cases: [{ name: 'a', classname: '', time: 1, status: 'passed', message: '' }] };
+  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests: clean, slowestTests: 0 });
+  assert.match(body, /#### 🧪 Tests/);
+  assert.doesNotMatch(body, /Failed tests|Slowest/);
+  assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null }), /Tests/);
 });
 
 test('html puts changed files first and expanded, and can hide fully covered ones', () => {
@@ -111,7 +146,8 @@ test('html puts changed files first and expanded, and can hide fully covered one
   assert.doesNotMatch(renderHtml({ title: 'T', rows: [rows[1]], sources, hideFullyCovered: true }), /<h2>/);
 });
 
-test('html is self-contained and escapes source', () => {
+test('html shows the tests summary and is self-contained', () => {
+  assert.match(renderHtml({ title: 'T', rows, sources: new Map(), tests }), /🧪 6 tests · ❌ 1 failures · 💥 1 errors · ⏭️ 1 skipped · ⏱️ 1m 5\.3s/);
   const sources = new Map([['a.js', 'if (a < b) {}\nx\ny\nz'], ['b.js', null]]);
   const html = renderHtml({ title: 'T "x"', rows, sources });
   assert.match(html, /a &lt; b/);
@@ -120,26 +156,4 @@ test('html is self-contained and escapes source', () => {
   assert.match(html, /class="miss"/);
   assert.match(html, /class="none"/);
   assert.doesNotMatch(html, /<script|<link /);
-});
-
-const tests = { tests: 10, failures: 1, errors: 2, skipped: 3, time: 65.25 };
-
-test('markdown and html show the tests table with execution time', () => {
-  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests });
-  assert.match(body, /#### 🧪 Tests/);
-  assert.match(body, /\| 10 \| 4 \| 3 \| 1 \| 2 \| 1m 5\.3s \|/);
-  assert.match(renderHtml({ title: 'T', rows, sources: new Map(), tests }), /🧪 10 tests · ❌ 1 failures · 💥 2 errors · ⏭️ 3 skipped · ⏱️ 1m 5\.3s/);
-  assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null }), /Tests/);
-});
-
-test('junit parsing from root counts, testcases and invalid input', () => {
-  const root = '<testsuites name="node" tests="5" failures="1" errors="0" skipped="2" time="1.5"><testsuite tests="5"/></testsuites>';
-  assert.deepEqual(parseJunit(root), { tests: 5, failures: 1, errors: 0, skipped: 2, time: 1.5 });
-  const pytest = '<testsuites name="pytest"><testsuite name="s" tests="3"><testcase time="0.5"><failure/></testcase><testcase time="0.25"><error/></testcase><testcase><skipped/></testcase></testsuite></testsuites>';
-  assert.deepEqual(parseJunit(pytest), { tests: 3, failures: 1, errors: 1, skipped: 1, time: 0.75 });
-  const node = '<testsuites>\n<testcase name="a" time="0.1"/>\n<testcase name="b" time="0.2"/>\n<!-- skipped 0 -->\n<!-- duration_ms 216.5 -->\n</testsuites>';
-  assert.deepEqual(parseJunit(node), { tests: 2, failures: 0, errors: 0, skipped: 0, time: 0.2165 });
-  assert.deepEqual(parseJunit('<testsuites name="empty">'), { tests: 0, failures: 0, errors: 0, skipped: 0, time: 0 });
-  assert.equal(parseJunit('<html></html>'), null);
-  assert.equal(formatTime(0.256), '0.26s');
 });

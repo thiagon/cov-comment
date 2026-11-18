@@ -27,11 +27,12 @@ steps:
 | --- | --- | --- |
 | `lcov-file` | required | Path to the lcov file |
 | `baseline-file` | `''` | lcov file from the base branch, enables deltas |
-| `junit-file` | `''` | JUnit XML test report; adds a tests table with pass/skip/fail counts and execution time |
+| `junit-file` | `''` | JUnit XML test report; adds the tests table (counts and execution time), failed test details and the slowest tests |
 | `title` | `Coverage Report` | Comment and report title |
-| `thresholds` | `90,70` | Green and yellow cutoffs in percent, used for the emojis and the badge color |
+| `thresholds` | `90,70` | Green and yellow cutoffs in percent, they drive the tier emojis and the badge color |
+| `slowest-tests` | `5` | How many of the slowest tests to list (needs `junit-file`), `0` disables it |
+| `badge-branch` | `''` | Branch that receives `coverage.json` on pushes to the baseline branch, for a README badge |
 | `minimum-coverage` | `0` | Fail when total line coverage is below this value |
-| `emojis` | `🟢,🟡,🔴,⚪` | Emojis for green, yellow, red and no data |
 | `hide-fully-covered` | `false` | Hide 100% files from the all files list and the HTML report; changed files are always listed |
 | `html-name` | `coverage.html` | HTML report file name, also used as the artifact name |
 | `github-token` | `github.token` | Token used to post the comment |
@@ -42,6 +43,20 @@ steps:
 | --- | --- |
 | `total-coverage` | Total line coverage percentage |
 | `report-url` | URL of the HTML report artifact |
+
+## README badge
+
+Set `badge-branch: badges` and give the job `contents: write`. On each push to the baseline branch the action commits a shields endpoint file (`coverage.json`) to that branch. For a public repository:
+
+```markdown
+![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/OWNER/REPO/badges/coverage.json)
+```
+
+Raw URLs of private repositories need authentication, so the badge only renders for public repositories.
+
+## History
+
+The baseline artifact also carries `history.json` with up to 30 points from the baseline branch. Pull requests render it as a trend line. The chain depends on the artifact retention (90 days by default): if the branch has no push for longer than that, the history restarts.
 
 ## Baseline
 

@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   actions: read
 
@@ -39,4 +39,5 @@ jobs:
           lcov-file: coverage/lcov.info
           junit-file: coverage/junit.xml
           hide-fully-covered: true
+          badge-branch: badges
       - run: echo "${{ steps.cov.outputs.report-url }}"

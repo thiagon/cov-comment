@@ -9,15 +9,15 @@ inputs:
   lcov-file:
     description: Path to the lcov file
     required: true
+  junit-file:
+    description: Path to a JUnit XML test report, adds tests, failures, slowest tests and execution time
+    default: ''
   baseline-file:
     description: Path to a baseline lcov file, overrides the automatic baseline
     default: ''
   baseline-branch:
-    description: Branch whose latest successful run provides the baseline
+    description: Branch whose latest successful run provides the baseline and the history
     default: main
-  junit-file:
-    description: Path to a JUnit XML test report, adds a tests and time section
-    default: ''
   title:
     description: Comment and report title
     default: Coverage Report
@@ -27,17 +27,20 @@ inputs:
   thresholds:
     description: Green and yellow cutoffs in percent, as green,yellow
     default: '90,70'
-  emojis:
-    description: Emojis for green, yellow, red and no data, as four comma separated values
-    default: 🟢,🟡,🔴,⚪
+  slowest-tests:
+    description: How many of the slowest tests to list, 0 disables the list
+    default: '5'
   hide-fully-covered:
     description: Hide files with 100% coverage from the all files list and the HTML report, changed files are always listed
     default: 'false'
+  badge-branch:
+    description: Branch that receives coverage.json for a shields endpoint badge on pushes to the baseline branch, empty disables it
+    default: ''
   html-name:
     description: File name of the HTML report, also the artifact name
     default: coverage.html
   github-token:
-    description: Token used to post the PR comment
+    description: Token used to post the PR comment, find the baseline and push the badge
     default: ${{ github.token }}
 
 outputs:
@@ -51,19 +54,8 @@ outputs:
 runs:
   using: composite
   steps:
-    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch
-      shell: bash
-      run: |
-        mkdir -p "$RUNNER_TEMP/cov-comment-publish"
-        cp "${{ inputs.lcov-file }}" "$RUNNER_TEMP/cov-comment-publish/lcov.info"
-    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch
-      uses: actions/upload-artifact@v7
-      with:
-        name: cov-comment-baseline
-        path: ${{ runner.temp }}/cov-comment-publish/lcov.info
-        overwrite: true
     - id: baseline
-      if: github.event_name == 'pull_request' && inputs.baseline-file == ''
+      if: (github.event_name == 'pull_request' && inputs.baseline-file == '') || (github.event_name == 'push' && github.ref_name == inputs.baseline-branch)
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
@@ -78,15 +70,55 @@ runs:
         path: ${{ runner.temp }}/cov-comment-baseline
         run-id: ${{ steps.baseline.outputs.run-id }}
         github-token: ${{ inputs.github-token }}
+    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/src/main.js" history
+      env:
+        INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
+        INPUT_HTML_NAME: ${{ inputs.html-name }}
+    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch
+      uses: actions/upload-artifact@v7
+      with:
+        name: cov-comment-baseline
+        path: ${{ runner.temp }}/cov-comment-publish
+        overwrite: true
+    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch && inputs.badge-branch != ''
+      shell: bash
+      env:
+        TOKEN: ${{ inputs.github-token }}
+        BRANCH: ${{ inputs.badge-branch }}
+        INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
+        INPUT_HTML_NAME: ${{ inputs.html-name }}
+        INPUT_THRESHOLDS: ${{ inputs.thresholds }}
+      run: |
+        set -euo pipefail
+        node "$GITHUB_ACTION_PATH/src/main.js" badge
+        remote="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        auth="Authorization: Basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+        work="$RUNNER_TEMP/cov-comment-badge-repo"
+        rm -rf "$work"
+        if git -c "http.extraheader=$auth" clone --quiet --depth 1 --branch "$BRANCH" "$remote" "$work" 2>/dev/null; then
+          :
+        else
+          git init --quiet "$work"
+          git -C "$work" checkout --quiet --orphan "$BRANCH"
+          git -C "$work" remote add origin "$remote"
+        fi
+        cp "$RUNNER_TEMP/cov-comment-badge/coverage.json" "$work/coverage.json"
+        git -C "$work" add coverage.json
+        if ! git -C "$work" diff --cached --quiet; then
+          git -C "$work" -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit --quiet -m "chore: update coverage badge"
+          git -C "$work" -c "http.extraheader=$auth" push --quiet origin "$BRANCH"
+        fi
     - id: report
       shell: bash
       run: node "$GITHUB_ACTION_PATH/src/main.js" report
       env:
         INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
+        INPUT_JUNIT_FILE: ${{ inputs.junit-file }}
         INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_HTML_NAME: ${{ inputs.html-name }}
-        INPUT_JUNIT_FILE: ${{ inputs.junit-file }}
         INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
     - id: upload
@@ -98,12 +130,12 @@ runs:
       run: node "$GITHUB_ACTION_PATH/src/main.js" comment
       env:
         INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
+        INPUT_JUNIT_FILE: ${{ inputs.junit-file }}
         INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_HTML_NAME: ${{ inputs.html-name }}
         INPUT_THRESHOLDS: ${{ inputs.thresholds }}
-        INPUT_EMOJIS: ${{ inputs.emojis }}
-        INPUT_JUNIT_FILE: ${{ inputs.junit-file }}
+        INPUT_SLOWEST_TESTS: ${{ inputs.slowest-tests }}
         INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         REPORT_URL: ${{ steps.upload.outputs.artifact-url }}

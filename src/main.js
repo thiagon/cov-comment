@@ -1,15 +1,20 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { listChangedFiles, upsertComment } from './comment.js';
 import { renderHtml } from './html.js';
+import { appendPoint, readHistory } from './history.js';
 import { parseJunit } from './junit.js';
 import { parseLcov, percent, summarize, total } from './lcov.js';
-import { MARKER, parseEmojis, parseThresholds, renderMarkdown } from './render.js';
+import { badgeJson, MARKER, parseThresholds, renderMarkdown } from './render.js';
 
 const env = process.env;
 const root = process.cwd();
 const outDir = join(env.RUNNER_TEMP ?? root, 'cov-comment');
 const htmlPath = join(outDir, env.INPUT_HTML_NAME);
+const tempRoot = env.RUNNER_TEMP ?? root;
+const baselineDir = join(tempRoot, 'cov-comment-baseline');
+const historyFile = join(baselineDir, 'history.json');
+const previousHistory = () => (existsSync(historyFile) ? readHistory(readFileSync(historyFile, 'utf8')) : []);
 
 const load = (path) => summarize(parseLcov(readFileSync(path, 'utf8')), root);
 const rows = load(env.INPUT_LCOV_FILE);
@@ -48,7 +53,8 @@ const commands = {
       reportUrl: env.REPORT_URL,
       changed,
       thresholds: parseThresholds(env.INPUT_THRESHOLDS),
-      emojis: parseEmojis(env.INPUT_EMOJIS),
+      history: previousHistory(),
+      slowestTests: Number(env.INPUT_SLOWEST_TESTS) || 0,
       tests,
       hideFullyCovered,
       blobUrl: sha ? `${server}/${repository}/blob/${sha}` : null,
@@ -60,6 +66,27 @@ const commands = {
     if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${body}\n`);
     if (!canComment) return;
     await upsertComment({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number, body, marker: MARKER });
+  },
+
+  history() {
+    const totals = total(rows);
+    const point = {
+      sha,
+      date: new Date().toISOString(),
+      lines: Number(percent(totals.lines).toFixed(2)),
+      functions: Number(percent(totals.functions).toFixed(2)),
+      branches: Number(percent(totals.branches).toFixed(2)),
+    };
+    const publishDir = join(tempRoot, 'cov-comment-publish');
+    mkdirSync(publishDir, { recursive: true });
+    copyFileSync(env.INPUT_LCOV_FILE, join(publishDir, 'lcov.info'));
+    writeFileSync(join(publishDir, 'history.json'), JSON.stringify(appendPoint(previousHistory(), point)));
+  },
+
+  badge() {
+    const badgeDir = join(tempRoot, 'cov-comment-badge');
+    mkdirSync(badgeDir, { recursive: true });
+    writeFileSync(join(badgeDir, 'coverage.json'), JSON.stringify(badgeJson(totalLines, parseThresholds(env.INPUT_THRESHOLDS))));
   },
 
   gate() {
