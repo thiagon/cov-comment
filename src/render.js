@@ -103,6 +103,7 @@ export function renderMarkdown({
   tests = null,
   history = [],
   hideFullyCovered = false,
+  expandChanged = true,
   thresholds = DEFAULT_THRESHOLDS,
 }) {
   const totals = total(rows);
@@ -130,7 +131,7 @@ export function renderMarkdown({
 
   if (changed) {
     const touched = ordered.filter((row) => changed.has(row.path));
-    out.push('', `<details open><summary>📁 Changed files (${touched.length})</summary>`, '');
+    out.push('', `<details${expandChanged ? ' open' : ''}><summary>📁 Changed files (${touched.length})</summary>`, '');
     out.push(...(touched.length ? fileTable(touched, basePaths, thresholds, blobUrl) : ['No coverage data for changed files.']));
     out.push('', '</details>');
   }

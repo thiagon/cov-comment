@@ -30,6 +30,9 @@ inputs:
   hide-fully-covered:
     description: Hide files with 100% coverage from the all files list and the HTML report, changed files are always listed
     default: 'false'
+  expand-changed-files:
+    description: Start the changed files section of the comment expanded, set false to start collapsed
+    default: 'true'
   badge-branch:
     description: Branch that receives coverage.json for a shields endpoint badge on pushes to the baseline branch, empty disables it
     default: ''
@@ -133,6 +136,7 @@ runs:
         INPUT_HTML_NAME: ${{ inputs.html-name }}
         INPUT_THRESHOLDS: ${{ inputs.thresholds }}
         INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
+        INPUT_EXPAND_CHANGED_FILES: ${{ inputs.expand-changed-files }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         REPORT_URL: ${{ steps.upload.outputs.artifact-url }}
     - shell: bash

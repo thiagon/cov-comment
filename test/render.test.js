@@ -58,6 +58,12 @@ test('markdown shows before, after, delta, statements, origin last and custom th
   assert.match(body, /Commit \[`abcdef1`\]\(https:\/\/x\/commit\) · \[ci #4\]/);
 });
 
+test('changed files section can start collapsed', () => {
+  const changed = new Set(['a.js']);
+  assert.match(renderMarkdown({ title: 'T', rows, baseRows: null, changed }), /<details open><summary>📁 Changed files/);
+  assert.match(renderMarkdown({ title: 'T', rows, baseRows: null, changed, expandChanged: false }), /<details><summary>📁 Changed files/);
+});
+
 test('markdown links single missing lines and encodes paths', () => {
   const single = summarize(parseLcov('SF:dir with space/a.js\nDA:1,1\nDA:2,0\nend_of_record\n'));
   const body = renderMarkdown({ title: 'T', rows: single, baseRows: null, blobUrl: 'https://x/blob/abc' });

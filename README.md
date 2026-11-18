@@ -30,6 +30,7 @@ steps:
 | `junit-file` | `''` | JUnit XML test report; adds the tests table (counts and execution time) and failed test details |
 | `title` | `Coverage Report` | Comment and report title |
 | `thresholds` | `90,70` | Green and yellow cutoffs in percent, they drive the tier emojis and the badge color |
+| `expand-changed-files` | `true` | Start the changed files section of the comment expanded; `false` starts it collapsed |
 | `badge-branch` | `''` | Branch that receives `coverage.json` on pushes to the baseline branch, for a README badge |
 | `minimum-coverage` | `0` | Fail when total line coverage is below this value |
 | `hide-fully-covered` | `false` | Hide 100% files from the all files list and the HTML report; changed files are always listed |

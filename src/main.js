@@ -56,6 +56,7 @@ const commands = {
       history: previousHistory(),
       tests,
       hideFullyCovered,
+      expandChanged: env.INPUT_EXPAND_CHANGED_FILES !== 'false',
       blobUrl: sha ? `${server}/${repository}/blob/${sha}` : null,
       commit: sha ? { sha, url: `${server}/${repository}/commit/${sha}` } : null,
       run: env.GITHUB_RUN_ID
