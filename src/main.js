@@ -8,6 +8,13 @@ import { parseJunit } from './junit.js';
 import { parseLcov, percent, summarize, total } from './lcov.js';
 import { badgeJson, MARKER, parseThresholds, renderMarkdown } from './render.js';
 
+const parseMinimum = (value) => {
+  if (!value) return 0; // only the gate step receives it
+  const minimum = Number(value);
+  if (Number.isNaN(minimum)) throw new Error(`Invalid minimum-coverage: ${value}`);
+  return minimum;
+};
+
 // every environment variable the action reads, in one place
 const env = process.env;
 const root = process.cwd();
@@ -20,7 +27,7 @@ const config = {
   title: env.INPUT_TITLE,
   artifactName: env.INPUT_ARTIFACT_NAME,
   thresholds: parseThresholds(env.INPUT_THRESHOLDS),
-  minimumCoverage: env.INPUT_MINIMUM_COVERAGE,
+  minimumCoverage: parseMinimum(env.INPUT_MINIMUM_COVERAGE),
   skipCovered: env.INPUT_SKIP_COVERED === 'true',
   expandChanged: env.INPUT_EXPAND_CHANGED_FILES !== 'false',
   annotateMissingLines: env.INPUT_ANNOTATE_MISSING_LINES !== 'false',
@@ -127,10 +134,8 @@ const commands = {
   },
 
   gate() {
-    const minimum = Number(config.minimumCoverage);
-    if (Number.isNaN(minimum)) throw new Error(`Invalid minimum-coverage: ${config.minimumCoverage}`);
-    if (totalLines < minimum) {
-      console.error(`Line coverage ${totalLines.toFixed(2)}% is below the minimum of ${minimum}%`);
+    if (totalLines < config.minimumCoverage) {
+      console.error(`Line coverage ${totalLines.toFixed(2)}% is below the minimum of ${config.minimumCoverage}%`);
       process.exitCode = 1;
     }
   },
