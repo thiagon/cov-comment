@@ -25,7 +25,6 @@ jobs:
           --test-coverage-lines=100
           --test-coverage-functions=100
           --test-coverage-branches=100
-          --test-coverage-exclude=src/main.js
           --test-coverage-exclude='test/**'
           --test-reporter=spec
           --test-reporter-destination=stdout
