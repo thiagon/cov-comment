@@ -136,11 +136,12 @@ export function renderMarkdown({
     out.push('', '</details>');
   }
 
-  const listed = hideFullyCovered ? ordered.filter((row) => !isFullyCovered(row)) : ordered;
-  const hidden = ordered.length - listed.length;
+  const rest = changed ? ordered.filter((row) => !changed.has(row.path)) : ordered;
+  const listed = hideFullyCovered ? rest.filter((row) => !isFullyCovered(row)) : rest;
+  const hidden = rest.length - listed.length;
   if (listed.length) {
     const count = hidden ? `${listed.length}, ${hidden} fully covered hidden` : `${listed.length}`;
-    out.push('', `<details><summary>🗂️ All files (${count})</summary>`, '', ...fileTable(listed.slice(0, MAX_FILES), basePaths, thresholds, blobUrl));
+    out.push('', `<details><summary>🗂️ ${changed ? 'Other' : 'All'} files (${count})</summary>`, '', ...fileTable(listed.slice(0, MAX_FILES), basePaths, thresholds, blobUrl));
     if (listed.length > MAX_FILES) out.push('', `_${listed.length - MAX_FILES} more files in the full report._`);
     out.push('', '</details>');
   }

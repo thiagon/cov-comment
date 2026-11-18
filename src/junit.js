@@ -6,6 +6,8 @@ const decode = (value) =>
     .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
     .replace(/&(amp|lt|gt|quot|apos);/g, (_, name) => NAMED[name]);
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const rawAttr = (tag, name) => {
   const match = new RegExp(`\\s${name}="([^"]*)"`).exec(tag);
   return match ? decode(match[1]) : '';
@@ -24,12 +26,17 @@ const read = (tag) => ({
 function parseCases(xml) {
   return [...xml.matchAll(/<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g)].map(([, tag, body = '']) => {
     const problem = /<(failure|error)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/\1>)/.exec(body);
+    const file = rawAttr(tag, 'file');
+    const trace = problem ? decode(problem[3] ?? '') : '';
+    const frame = file ? new RegExp(`${escapeRegExp(file)}:(\\d+):\\d+`).exec(trace) : null;
     return {
       name: rawAttr(tag, 'name'),
       classname: rawAttr(tag, 'classname'),
+      file,
+      line: attr(tag, 'line') || (frame ? Number(frame[1]) : 0),
       time: attr(tag, 'time'),
       status: problem ? problem[1] : /<skipped\b/.test(body) ? 'skipped' : 'passed',
-      message: problem ? rawAttr(problem[2], 'message') || decode((problem[3] ?? '').trim()) : '',
+      message: problem ? rawAttr(problem[2], 'message') || trace.trim() : '',
     };
   });
 }

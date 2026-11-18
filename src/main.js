@@ -1,5 +1,6 @@
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildAnnotations } from './annotations.js';
 import { listChangedFiles, upsertComment } from './comment.js';
 import { renderHtml } from './html.js';
 import { appendPoint, readHistory } from './history.js';
@@ -63,6 +64,7 @@ const commands = {
         ? { label: `${env.GITHUB_WORKFLOW} #${env.GITHUB_RUN_NUMBER}`, url: `${server}/${repository}/actions/runs/${env.GITHUB_RUN_ID}` }
         : null,
     });
+    if (env.INPUT_ANNOTATIONS !== 'false') buildAnnotations({ rows, changed, tests, root }).forEach((line) => console.log(line));
     if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${body}\n`);
     if (!canComment) return;
     await upsertComment({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number, body, marker: MARKER });

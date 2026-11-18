@@ -50,7 +50,7 @@ test('markdown shows before, after, delta, statements, origin last and custom th
   assert.match(body, /\| 🌿 Branches \| — \| ⚪ n\/a \|/);
   assert.match(body, /\| \[a\.js\]\(https:\/\/x\/blob\/abc\/a\.js\) \| 3 \| 2 \| 66\.7% \| 🔴 33\.3% \| ▼ -33\.3 \| \[2-3\]\(https:\/\/x\/blob\/abc\/a\.js#L2-L3\) \|/);
   assert.match(body, /\| \[b\.js\]\(https:\/\/x\/blob\/abc\/b\.js\) \| 1 \| 0 \| — \| 🟢 100\.0% \|  \|/);
-  assert.match(body, /<details open><summary>📁 Changed files \(2\)<\/summary>[\s\S]*a\.js[\s\S]*<details><summary>🗂️ All files \(3\)/);
+  assert.match(body, /<details open><summary>📁 Changed files \(2\)<\/summary>[\s\S]*a\.js[\s\S]*<details><summary>🗂️ Other files \(1\)/);
   assert.doesNotMatch(body.split('<details><summary>🗂️')[0], /c\.js/);
   assert.doesNotMatch(body, /below|no data/);
   assert.ok(body.trimEnd().endsWith('[ci #4](https://x/run)'));
@@ -90,9 +90,13 @@ test('hides fully covered files from the all files list but keeps changed ones',
   const body = renderMarkdown({ title: 'T', rows, baseRows: null, changed: new Set(['b.js']), hideFullyCovered: true });
   const [changedPart, allPart] = body.split('<details><summary>🗂️');
   assert.match(changedPart, /b\.js/);
-  assert.match(allPart, /All files \(1, 2 fully covered hidden\)/);
+  assert.match(allPart, /Other files \(1, 1 fully covered hidden\)/);
   assert.doesNotMatch(allPart, /b\.js|c\.js/);
   assert.match(allPart, /a\.js/);
+});
+
+test('lists every file as all files when there is no pull request', () => {
+  assert.match(renderMarkdown({ title: 'T', rows, baseRows: null }), /🗂️ All files \(3\)/);
 });
 
 test('omits the all files list when everything is hidden', () => {

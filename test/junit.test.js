@@ -19,11 +19,22 @@ test('derives counts and details from testcases, decoding entities', () => {
 </testsuite></testsuites>`;
   const { cases, ...summary } = parseJunit(xml);
   assert.deepEqual(summary, { tests: 5, failures: 2, errors: 1, skipped: 1, time: 0.85 });
-  assert.deepEqual(cases[0], { name: 'fails & <x>', classname: 'mod.Cls', time: 0.5, status: 'failure', message: 'boom "q"' });
+  assert.deepEqual(cases[0], { name: 'fails & <x>', classname: 'mod.Cls', file: '', line: 0, time: 0.5, status: 'failure', message: 'boom "q"' });
   assert.equal(cases[1].message, "only body 'text'");
   assert.equal(cases[2].status, 'skipped');
   assert.equal(cases[3].status, 'passed');
   assert.equal(cases[4].message, '');
+});
+
+test('reads file and line from attributes or the stack trace', () => {
+  const xml = `<testsuites>
+<testcase name="a" file="/w/t.js"><failure message="m">Error: m
+    at TestContext.<anonymous> (file:///w/t.js:12:5)</failure></testcase>
+<testcase name="b" file="/w/t.js" line="7"><failure message="m"/></testcase>
+<testcase name="c" file="/w/t.js"><failure message="m">no frame here</failure></testcase>
+</testsuites>`;
+  const [a, b, c] = parseJunit(xml).cases;
+  assert.deepEqual([a.file, a.line, b.line, c.line], ['/w/t.js', 12, 7, 0]);
 });
 
 test('decodes numeric character references without double decoding', () => {

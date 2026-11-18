@@ -31,6 +31,7 @@ steps:
 | `title` | `Coverage Report` | Comment and report title |
 | `thresholds` | `90,70` | Green and yellow cutoffs in percent, they drive the tier emojis and the badge color |
 | `expand-changed-files` | `true` | Start the changed files section of the comment expanded; `false` starts it collapsed |
+| `annotations` | `true` | Annotate failed tests and the uncovered lines of changed files in the PR, at most 10 of each kind |
 | `badge-branch` | `''` | Branch that receives `coverage.json` on pushes to the baseline branch, for a README badge |
 | `minimum-coverage` | `0` | Fail when total line coverage is below this value |
 | `hide-fully-covered` | `false` | Hide 100% files from the all files list and the HTML report; changed files are always listed |
