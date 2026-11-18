@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { listChangedFiles, upsertComment } from './comment.js';
 import { renderHtml } from './html.js';
 import { parseLcov, percent, summarize, total } from './lcov.js';
-import { MARKER, parseThresholds, renderMarkdown } from './render.js';
+import { MARKER, parseEmojis, parseThresholds, renderMarkdown } from './render.js';
 
 const env = process.env;
 const root = process.cwd();
@@ -43,6 +43,8 @@ const commands = {
       reportUrl: env.REPORT_URL,
       changed,
       thresholds: parseThresholds(env.INPUT_THRESHOLDS),
+      emojis: parseEmojis(env.INPUT_EMOJIS),
+      blobUrl: sha ? `${server}/${repository}/blob/${sha}` : null,
       commit: sha ? { sha, url: `${server}/${repository}/commit/${sha}` } : null,
       run: env.GITHUB_RUN_ID
         ? { label: `${env.GITHUB_WORKFLOW} #${env.GITHUB_RUN_NUMBER}`, url: `${server}/${repository}/actions/runs/${env.GITHUB_RUN_ID}` }

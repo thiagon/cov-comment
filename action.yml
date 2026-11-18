@@ -24,6 +24,9 @@ inputs:
   thresholds:
     description: Green and yellow cutoffs in percent, as green,yellow
     default: '90,70'
+  emojis:
+    description: Emojis for green, yellow, red and no data, as four comma separated values
+    default: 🟢,🟡,🔴,⚪
   html-name:
     description: File name of the HTML report, also the artifact name
     default: coverage.html
@@ -90,6 +93,7 @@ runs:
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_HTML_NAME: ${{ inputs.html-name }}
         INPUT_THRESHOLDS: ${{ inputs.thresholds }}
+        INPUT_EMOJIS: ${{ inputs.emojis }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         REPORT_URL: ${{ steps.upload.outputs.artifact-url }}
     - shell: bash

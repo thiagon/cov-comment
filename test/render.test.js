@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderHtml } from '../src/html.js';
 import { parseLcov, summarize } from '../src/lcov.js';
-import { badgeUrl, formatDelta, formatRanges, MARKER, parseThresholds, renderMarkdown, tier } from '../src/render.js';
+import { badgeUrl, formatDelta, formatRanges, MARKER, parseEmojis, parseThresholds, renderMarkdown, tier } from '../src/render.js';
 
 const rows = summarize(parseLcov('SF:a.js\nDA:1,1\nDA:2,0\nDA:3,0\nend_of_record\nSF:b.js\nDA:1,1\nend_of_record\nSF:c.js\nDA:1,1\nDA:2,1\nend_of_record\n'));
 const baseline = summarize(parseLcov('SF:a.js\nDA:1,1\nDA:2,1\nDA:3,0\nFN:1,f\nFNDA:1,f\nend_of_record\nSF:c.js\nDA:1,1\nDA:2,1\nend_of_record\n'));
@@ -22,6 +22,12 @@ test('thresholds parsing falls back to defaults', () => {
   assert.deepEqual(parseThresholds('90'), [90, 70]);
 });
 
+test('emojis parsing falls back to defaults', () => {
+  assert.deepEqual(parseEmojis('✅, ⚠️, ❌, ➖'), ['✅', '⚠️', '❌', '➖']);
+  assert.deepEqual(parseEmojis('a,b,c'), ['🟢', '🟡', '🔴', '⚪']);
+  assert.deepEqual(parseEmojis('a,b,c,'), ['🟢', '🟡', '🔴', '⚪']);
+});
+
 test('delta formatting', () => {
   assert.equal(formatDelta(50, null), '');
   assert.equal(formatDelta(50, 50.01), '=');
@@ -39,18 +45,27 @@ test('markdown shows before, after, delta, origin and legend', () => {
     changed: new Set(['a.js', 'b.js']),
     commit: { sha: 'abcdef123456', url: 'https://x/commit' },
     run: { label: 'ci #4', url: 'https://x/run' },
+    blobUrl: 'https://x/blob/abc',
+    emojis: ['✅', '⚠️', '❌', '➖'],
   });
   assert.ok(body.startsWith(MARKER));
   assert.match(body, /### 📊 Coverage Report/);
   assert.match(body, /Commit \[`abcdef1`\]\(https:\/\/x\/commit\) · \[ci #4\]\(https:\/\/x\/run\)/);
-  assert.match(body, /\| 📈 Lines \| 80.0% \| 🔴 66\.7% \| ▼ -13\.3 \| 4\/6 \|/);
-  assert.match(body, /\| 🔧 Functions \| 100\.0% \| ⚪ n\/a \|  \| 0\/0 \|/);
-  assert.match(body, /\| a\.js \| 66\.7% \| 🔴 33\.3% \| ▼ -33\.3 \| 2-3 \|/);
-  assert.match(body, /\| b\.js \| — \| 🟢 100\.0% \|  \|/);
+  assert.match(body, /\| 📈 Lines \| 80.0% \| ❌ 66\.7% \| ▼ -13\.3 \| 4\/6 \|/);
+  assert.match(body, /\| 🔧 Functions \| 100\.0% \| ➖ n\/a \|  \| 0\/0 \|/);
+  assert.match(body, /\| \[a\.js\]\(https:\/\/x\/blob\/abc\/a\.js\) \| 66\.7% \| ❌ 33\.3% \| ▼ -33\.3 \| \[2-3\]\(https:\/\/x\/blob\/abc\/a\.js#L2-L3\) \|/);
+  assert.match(body, /\| \[b\.js\]\(https:\/\/x\/blob\/abc\/b\.js\) \| — \| ✅ 100\.0% \|  \|/);
   assert.match(body, /#### 📁 Changed files[\s\S]*a\.js[\s\S]*<details>/);
   assert.doesNotMatch(body.split('<details>')[0], /c\.js/);
-  assert.match(body, /> 🟢 ≥ 90% · 🟡 ≥ 70% · 🔴 below 70% · ⚪ no data/);
+  assert.doesNotMatch(body, /below|no data/);
   assert.match(body, /📄 \[Full HTML report\]\(https:\/\/x\/report\)/);
+});
+
+test('markdown links single missing lines and encodes paths', () => {
+  const single = summarize(parseLcov('SF:dir with space/a.js\nDA:1,1\nDA:2,0\nend_of_record\n'));
+  const body = renderMarkdown({ title: 'T', rows: single, baseRows: null, blobUrl: 'https://x/blob/abc' });
+  assert.match(body, /\[dir with space\/a\.js\]\(https:\/\/x\/blob\/abc\/dir%20with%20space\/a\.js\)/);
+  assert.match(body, /\[2\]\(https:\/\/x\/blob\/abc\/dir%20with%20space\/a\.js#L2\)/);
 });
 
 test('markdown without baseline, origin or link', () => {
