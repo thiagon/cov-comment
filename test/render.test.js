@@ -139,14 +139,29 @@ test('markdown shows the tests table after the coverage sections', () => {
   assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null }), /Tests/);
 });
 
-test('html puts changed files first and expanded, and can hide fully covered ones', () => {
+test('html lists every file, changed ones first and expanded, with a Changed / All scope', () => {
   const sources = new Map();
-  const html = renderHtml({ title: 'T', rows, sources, changed: new Set(['b.js']), skipCovered: true });
-  assert.match(html, /<details open class="file-card[^>]*data-filename="b\.js"/);
-  assert.match(html, /<span id="fileCountBadge"[^>]*>2<\/span>/);
+  const html = renderHtml({ title: 'T', rows, sources, changed: new Set(['b.js']) });
+  assert.match(html, /<details open class="file-card[^>]*data-filename="b\.js"[^>]*data-changed="true"/);
+  assert.match(html, /data-filename="c\.js"[^>]*data-changed="false"/);
+  assert.match(html, /<span id="fileCountBadge"[^>]*>3<\/span>/);
   assert.ok(html.indexOf('data-filename="b.js"') < html.indexOf('data-filename="a.js"'));
-  assert.doesNotMatch(html, /data-filename="c\.js"/);
-  assert.match(renderHtml({ title: 'T', rows: [rows[1]], sources, skipCovered: true }), /No coverage data to show/);
+  assert.match(html, /<body data-scope="changed"/);
+  assert.match(html, /Changed \(1\)/);
+  assert.match(html, /All \(3\)/);
+  assert.doesNotMatch(html, /hidden inline-flex/);
+});
+
+test('html says so when there is no coverage data at all', () => {
+  assert.match(renderHtml({ title: 'T', rows: [], sources: new Map() }), /No coverage data to show/);
+});
+
+test('html defaults to all files and hides the scope filter when nothing is known about changes', () => {
+  const sources = new Map();
+  const noPull = renderHtml({ title: 'T', rows, sources });
+  assert.match(noPull, /<body data-scope="all"/);
+  assert.match(noPull, /hidden inline-flex[^>]*>\s*<button onclick="setScope/);
+  assert.match(renderHtml({ title: 'T', rows, sources, changed: new Set() }), /<body data-scope="all"/);
 });
 
 test('html fills every placeholder, shows the tests summary and escapes content', () => {

@@ -28,7 +28,7 @@ inputs:
     description: Green and yellow cutoffs in percent, as green,yellow
     default: '90,70'
   skip-covered:
-    description: Hide files with 100% coverage from the all files list and the HTML report, changed files are always listed
+    description: Hide files with 100% coverage from the all files list of the comment, changed files are always listed and the HTML report always has every file
     default: 'false'
   max-files-in-comment:
     description: Maximum number of files listed in each table of the comment
@@ -128,7 +128,6 @@ runs:
         INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
-        INPUT_SKIP_COVERED: ${{ inputs.skip-covered }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
     - id: upload
       uses: actions/upload-artifact@v7

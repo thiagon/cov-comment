@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { formatTime } from './junit.js';
-import { isFullyCovered, percent, total } from './lcov.js';
+import { percent, total } from './lcov.js';
 import { DEFAULT_THRESHOLDS, formatPercent, tier } from './render.js';
 
 // one template file: the page, plus the repeatable blocks marked with <!--@name--> ... <!--@/name-->
@@ -73,6 +73,7 @@ function fileCard(row, sources, isChanged, thresholds, index) {
     tone_text: tone.text,
     pct_label: formatPercent(pct),
     squares: squares(pct, tone),
+    changed: isChanged,
     changed_badge: isChanged ? CHANGED_BADGE : '',
     lines_hit: row.lines.hit,
     lines_found: row.lines.found,
@@ -100,11 +101,12 @@ function testsCard(tests) {
   });
 }
 
-export function renderHtml({ title, rows, sources, changed = null, tests = null, skipCovered = false, thresholds = DEFAULT_THRESHOLDS }) {
+export function renderHtml({ title, rows, sources, changed = null, tests = null, thresholds = DEFAULT_THRESHOLDS }) {
   const totals = total(rows);
   const ordered = [...rows].sort((a, b) => percent(a.lines) - percent(b.lines));
   const isChanged = (row) => Boolean(changed?.has(row.path));
-  const shown = [...ordered.filter(isChanged), ...ordered.filter((row) => !isChanged(row) && !(skipCovered && isFullyCovered(row)))];
+  const shown = [...ordered.filter(isChanged), ...ordered.filter((row) => !isChanged(row))];
+  const changedCount = shown.filter(isChanged).length;
   const linesPct = percent(totals.lines);
   const tone = TONES[tier(linesPct, thresholds)];
   const missing = totals.lines.found - totals.lines.hit;
@@ -114,10 +116,14 @@ export function renderHtml({ title, rows, sources, changed = null, tests = null,
     badge_class: tone.bg,
     badge_icon: tone.icon,
     badge_label: `${formatPercent(linesPct)} lines`,
-    subtitle: `${rows.length} files with ${totals.lines.hit} covered lines and ${missing} ${missing === 1 ? 'miss' : 'misses'}${changed ? `, ${shown.filter(isChanged).length} changed` : ''}`,
+    subtitle: `${rows.length} files with ${totals.lines.hit} covered lines and ${missing} ${missing === 1 ? 'miss' : 'misses'}${changed ? `, ${changedCount} changed` : ''}`,
     ...metric('lines'),
     ...metric('functions'),
     ...metric('branches'),
+    scope: changedCount ? 'changed' : 'all',
+    scope_hidden: changed ? '' : 'hidden ',
+    changed_count: changedCount,
+    total_count: shown.length,
     tests_card: testsCard(tests),
     miss_count: shown.reduce((sum, row) => sum + row.lines.found - row.lines.hit, 0),
     file_count: shown.length,

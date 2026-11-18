@@ -227,7 +227,7 @@
     }
   </style>
 </head>
-<body class="bg-[#ffffff] dark:bg-[#0d1117] text-[#1f2328] dark:text-[#e6edf3] min-h-screen transition-colors duration-150">
+<body data-scope="{{scope}}" class="bg-[#ffffff] dark:bg-[#0d1117] text-[#1f2328] dark:text-[#e6edf3] min-h-screen transition-colors duration-150">
 
   <!-- Toast Notification -->
   <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-2.5 px-4 py-2.5 rounded-md bg-[#1f2328] dark:bg-[#238636] border border-[#30363d] text-white shadow-lg text-sm font-medium">
@@ -375,13 +375,15 @@
 
       <!-- Sort, Line Filters & Expand/Collapse Buttons -->
       <div class="flex flex-wrap items-center gap-2">
-        <!-- Sort dropdown -->
-        <select id="sortSelect" onchange="sortFiles(this.value)" aria-label="Sort files" class="px-2.5 py-1.5 rounded-md text-xs font-medium bg-[#ffffff] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#c9d1d9] focus:outline-none focus:border-[#0969da]">
-          <option value="coverage-asc">Sort: Lowest coverage</option>
-          <option value="coverage-desc">Sort: Highest coverage</option>
-          <option value="misses-desc">Sort: Most uncovered lines</option>
-          <option value="name-asc">Sort: File name (A-Z)</option>
-        </select>
+        <!-- Scope: files changed in the pull request, or every file -->
+        <div class="{{scope_hidden}}inline-flex rounded-md border border-[#d0d7de] dark:border-[#30363d] bg-[#ffffff] dark:bg-[#0d1117] p-0.5 text-xs font-medium">
+          <button onclick="setScope('changed')" id="btn-scope-changed" class="px-2.5 py-1 rounded-[4px] text-[#656d76] dark:text-[#7d8590] hover:text-[#1f2328] dark:hover:text-[#e6edf3] transition">
+            Changed ({{changed_count}})
+          </button>
+          <button onclick="setScope('all')" id="btn-scope-all" class="px-2.5 py-1 rounded-[4px] bg-[#0969da] dark:bg-[#1f6feb] text-white transition">
+            All ({{total_count}})
+          </button>
+        </div>
 
         <div class="inline-flex rounded-md border border-[#d0d7de] dark:border-[#30363d] bg-[#ffffff] dark:bg-[#0d1117] p-0.5 text-xs font-medium">
           <button onclick="setLineFilter('all')" id="btn-filter-all" class="px-2.5 py-1 rounded-[4px] bg-[#0969da] dark:bg-[#1f6feb] text-white transition">
@@ -394,6 +396,14 @@
             Uncovered ({{miss_count}})
           </button>
         </div>
+
+        <!-- Sort dropdown -->
+        <select id="sortSelect" onchange="sortFiles(this.value)" aria-label="Sort files" class="px-2.5 py-1.5 rounded-md text-xs font-medium bg-[#ffffff] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#c9d1d9] focus:outline-none focus:border-[#0969da]">
+          <option value="coverage-asc">Sort: Lowest coverage</option>
+          <option value="coverage-desc">Sort: Highest coverage</option>
+          <option value="misses-desc">Sort: Most uncovered lines</option>
+          <option value="name-asc">Sort: File name (A-Z)</option>
+        </select>
 
         <button onclick="toggleAllDetails(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#ffffff] hover:bg-[#f3f4f6] dark:bg-[#21262d] dark:hover:bg-[#30363d] border border-[#d0d7de] dark:border-[#30363d] text-[#1f2328] dark:text-[#c9d1d9] shadow-sm transition">
           <i data-lucide="unfold-vertical" class="w-3.5 h-3.5"></i>
@@ -436,7 +446,7 @@
         </div>
 
         <!--@file-->
-        <details{{open}} class="file-card group bg-[#ffffff] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] rounded-md overflow-hidden" data-filename="{{name}}" data-pct="{{pct}}" data-missed="{{missed_lines}}" data-tone="{{tone}}" id="{{id}}">
+        <details{{open}} class="file-card group bg-[#ffffff] dark:bg-[#0d1117] border border-[#d0d7de] dark:border-[#30363d] rounded-md overflow-hidden" data-filename="{{name}}" data-pct="{{pct}}" data-missed="{{missed_lines}}" data-changed="{{changed}}" data-tone="{{tone}}" id="{{id}}">
           <summary class="cursor-pointer select-none px-4 py-2.5 bg-[#f6f8fa] dark:bg-[#161b22] hover:bg-[#f3f4f6] dark:hover:bg-[#1f242c] flex flex-wrap items-center justify-between gap-4 border-b border-transparent group-open:border-[#d0d7de] dark:group-open:border-[#30363d] transition">
             <div class="flex flex-wrap items-center gap-2.5 min-w-0">
               <i data-lucide="chevron-right" class="w-4 h-4 text-[#656d76] dark:text-[#7d8590] transition-transform duration-150 group-open:rotate-90"></i>
@@ -484,6 +494,7 @@
       initFileMetadata();
       handleInitialHash();
       initKeyboardShortcuts();
+      setScope(document.body.dataset.scope ?? 'all');
     };
 
     // Calculate line counts and populate the quick-jump sidebar automatically
@@ -554,6 +565,18 @@
       btn.classList.toggle('opacity-60', isHidden);
     }
 
+    // Which files are listed: 'all' or only the 'changed' ones
+    let scopeMode = 'all';
+    const SCOPE_ACTIVE = 'px-2.5 py-1 rounded-[4px] bg-[#0969da] dark:bg-[#1f6feb] text-white transition';
+    const SCOPE_IDLE = 'px-2.5 py-1 rounded-[4px] text-[#656d76] dark:text-[#7d8590] hover:text-[#1f2328] dark:hover:text-[#e6edf3] transition';
+
+    function setScope(mode) {
+      scopeMode = mode;
+      document.getElementById('btn-scope-changed').className = mode === 'changed' ? SCOPE_ACTIVE : SCOPE_IDLE;
+      document.getElementById('btn-scope-all').className = mode === 'all' ? SCOPE_ACTIVE : SCOPE_IDLE;
+      filterFiles();
+    }
+
     // Which source lines are shown: 'all', 'hits' or 'miss'
     let lineMode = 'all';
     const LINE_SELECTORS = { hits: 'tr.hit', miss: 'tr.miss' };
@@ -575,7 +598,8 @@
         const matchesSearch = filename.includes(query) || codeContent.includes(query);
         const hasLines = lineMode === 'all' || card.querySelector(LINE_SELECTORS[lineMode]) !== null;
 
-        const visible = matchesSearch && hasLines;
+        const inScope = scopeMode === 'all' || card.dataset.changed === 'true';
+        const visible = matchesSearch && hasLines && inScope;
         card.classList.toggle('hidden', !visible);
         sidebarLinks.get(card.id)?.classList.toggle('hidden', !visible);
         if (visible) visibleCount++;

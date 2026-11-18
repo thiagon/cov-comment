@@ -40,7 +40,7 @@ const commands = {
     const changed = await fetchChanged();
     const sources = new Map(rows.map((row) => [row.path, existsSync(row.path) ? readFileSync(row.path, 'utf8') : null]));
     mkdirSync(outDir, { recursive: true });
-    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources, changed, tests, skipCovered, thresholds: parseThresholds(env.INPUT_THRESHOLDS) }));
+    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources, changed, tests, thresholds: parseThresholds(env.INPUT_THRESHOLDS) }));
     setOutput('html-path', htmlPath);
     setOutput('total-coverage', totalLines.toFixed(2));
   },

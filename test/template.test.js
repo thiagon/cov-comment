@@ -23,13 +23,13 @@ const classList = (initial = []) => {
 
 const element = (props = {}) => ({ classList: classList(), dataset: {}, className: '', textContent: '', value: '', ...props });
 
-function card({ name, tone = 'green', pct = '100', code = ['a', 'b'], classes = [], kinds = ['hit', 'miss'] }) {
+function card({ name, tone = 'green', pct = '100', code = ['a', 'b'], classes = [], kinds = ['hit', 'miss'], changed = 'false' }) {
   const rows = code.map((text) => ({ querySelector: () => ({ textContent: text }) }));
   const table = { innerText: code.join('\n') };
   const self = element({
     open: false,
     id: `file-${name}`,
-    dataset: { filename: name, tone, pct },
+    dataset: { filename: name, tone, pct, changed },
     getAttribute: (key) => (key === 'data-filename' ? name : null),
     querySelector: (selector) => {
       if (selector === 'table.source') return table;
@@ -44,7 +44,7 @@ function card({ name, tone = 'green', pct = '100', code = ['a', 'b'], classes = 
 
 function load(cards) {
   const ids = {};
-  for (const id of ['sidebarNav', 'searchInput', 'clearSearchBtn', 'fileCountBadge', 'emptyState', 'toast', 'toggleHeatmapBtn', 'btn-filter-all', 'btn-filter-hits', 'btn-filter-miss']) ids[id] = element();
+  for (const id of ['sidebarNav', 'searchInput', 'clearSearchBtn', 'fileCountBadge', 'emptyState', 'toast', 'toggleHeatmapBtn', 'btn-filter-all', 'btn-filter-hits', 'btn-filter-miss', 'btn-scope-changed', 'btn-scope-all']) ids[id] = element();
   ids.toast.classList = classList(['translate-y-20', 'opacity-0']);
   const created = [];
   const written = [];
@@ -267,4 +267,29 @@ test('sorting keeps the active line filter, search and sidebar order', () => {
   gaps.dataset.missed = '5';
   context.sortFiles('misses-desc');
   assert.equal(cards[0].dataset.filename, 'gaps.js');
+});
+
+test('scope filter lists only changed files, starts from the page default and combines with the other filters', () => {
+  const cards = [
+    card({ name: 'a.js', changed: 'true', kinds: ['hit', 'miss'] }),
+    card({ name: 'b.js', changed: 'false', kinds: ['hit', 'miss'] }),
+    card({ name: 'c.js', changed: 'true', kinds: ['hit'] }),
+  ];
+  const { context, ids, document, created } = load(cards);
+  document.body.dataset.scope = 'changed';
+  context.window.onload();
+  const hidden = () => cards.map((item) => item.classList.contains('hidden'));
+  assert.deepEqual(hidden(), [false, true, false]);
+  assert.deepEqual(created.map((link) => link.classList.contains('hidden')), [false, true, false]);
+  assert.equal(ids.fileCountBadge.textContent, 2);
+  assert.match(ids['btn-scope-changed'].className, /bg-\[#0969da\]/);
+  assert.doesNotMatch(ids['btn-scope-all'].className, /bg-\[#0969da\]/);
+  context.setLineFilter('miss');
+  assert.deepEqual(hidden(), [false, true, true]);
+  context.setScope('all');
+  assert.deepEqual(hidden(), [false, false, true]);
+  assert.match(ids['btn-scope-all'].className, /bg-\[#0969da\]/);
+  context.setLineFilter('all');
+  assert.deepEqual(hidden(), [false, false, false]);
+  assert.equal(ids.fileCountBadge.textContent, 3);
 });

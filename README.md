@@ -78,7 +78,7 @@ The workflow must also run on `push` to the default branch, because that run is 
 | --- | --- | --- |
 | `title` | `Coverage Report` | Title of the comment and of the HTML report. |
 | `thresholds` | `90,70` | Green and yellow cutoffs in percent. They define the tier emoji (🟢 🟡 🔴) and the badge color. |
-| `skip-covered` | `false` | Hide fully covered files (lines, functions and branches at 100%) from the other files list and from the HTML report. Changed files are always listed. |
+| `skip-covered` | `false` | Hide fully covered files (lines, functions and branches at 100%) from the all files list of the comment. Changed files are always listed, and the HTML report always has every file, with a Changed / All filter. |
 | `max-files-in-comment` | `100` | Maximum number of files listed in each table. |
 | `expand-changed-files` | `true` | Start the changed files section expanded. `false` starts it collapsed. |
 | `minimum-coverage` | `0` | Fail the job when the total line coverage is below this percentage. The comment is posted before the job fails. |
