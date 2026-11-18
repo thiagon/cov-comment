@@ -6,6 +6,7 @@
   "engines": {
     "node": ">=24"
   },
+  "license": "MIT",
   "scripts": {
     "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 --test-coverage-exclude='test/**'",
     "report": "node scripts/report-local.js"

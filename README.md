@@ -148,3 +148,7 @@ Raw URLs of private repositories need authentication, so the badge only renders 
 - Coverage is measured on lines, functions and branches as reported by lcov. The "Stmts" and "Miss" columns count lines, because lcov has no notion of statements.
 - Paths in the lcov file must be relative to the repository root, or absolute under the workspace. Monorepo setups with one lcov per package are not supported yet.
 - The comment marker and the baseline artifact name are fixed, so running the action several times in the same pull request makes the runs overwrite each other.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
