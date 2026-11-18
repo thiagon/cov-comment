@@ -39,6 +39,6 @@ steps:
 | `total-coverage` | Total line coverage percentage |
 | `report-url` | URL of the HTML report artifact |
 
-## Status
+## Baseline
 
-Baseline download from the default branch is not wired yet; pass `baseline-file` manually for now.
+On a push to `baseline-branch` (default `main`) the action uploads the lcov file as the `cov-comment-baseline` artifact. On pull requests it downloads the one from the latest successful run of the same workflow on that branch and shows deltas. The job needs `actions: read`. Without a previous run the report is shown without deltas; `baseline-file` overrides the automatic lookup.

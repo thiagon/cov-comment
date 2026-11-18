@@ -10,8 +10,11 @@ inputs:
     description: Path to the lcov file
     required: true
   baseline-file:
-    description: Path to the baseline lcov file, enables deltas
+    description: Path to a baseline lcov file, overrides the automatic baseline
     default: ''
+  baseline-branch:
+    description: Branch whose latest successful run provides the baseline
+    default: main
   title:
     description: Comment and report title
     default: Coverage
@@ -36,12 +39,39 @@ outputs:
 runs:
   using: composite
   steps:
+    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/cov-comment-publish"
+        cp "${{ inputs.lcov-file }}" "$RUNNER_TEMP/cov-comment-publish/lcov.info"
+    - if: github.event_name == 'push' && github.ref_name == inputs.baseline-branch
+      uses: actions/upload-artifact@v7
+      with:
+        name: cov-comment-baseline
+        path: ${{ runner.temp }}/cov-comment-publish/lcov.info
+        overwrite: true
+    - id: baseline
+      if: github.event_name == 'pull_request' && inputs.baseline-file == ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "${{ github.workflow }}" --branch "${{ inputs.baseline-branch }}" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+        echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+    - if: steps.baseline.outputs.run-id != ''
+      continue-on-error: true
+      uses: actions/download-artifact@v8
+      with:
+        name: cov-comment-baseline
+        path: ${{ runner.temp }}/cov-comment-baseline
+        run-id: ${{ steps.baseline.outputs.run-id }}
+        github-token: ${{ inputs.github-token }}
     - id: report
       shell: bash
       run: node "$GITHUB_ACTION_PATH/src/main.js" report
       env:
         INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
-        INPUT_BASELINE_FILE: ${{ inputs.baseline-file }}
+        INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_HTML_NAME: ${{ inputs.html-name }}
     - id: upload
@@ -53,7 +83,7 @@ runs:
       run: node "$GITHUB_ACTION_PATH/src/main.js" comment
       env:
         INPUT_LCOV_FILE: ${{ inputs.lcov-file }}
-        INPUT_BASELINE_FILE: ${{ inputs.baseline-file }}
+        INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_HTML_NAME: ${{ inputs.html-name }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
