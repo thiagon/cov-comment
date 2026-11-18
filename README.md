@@ -27,7 +27,8 @@ steps:
 | --- | --- | --- |
 | `lcov-file` | required | Path to the lcov file |
 | `baseline-file` | `''` | lcov file from the base branch, enables deltas |
-| `title` | `Coverage` | Comment and report title |
+| `title` | `Coverage Report` | Comment and report title |
+| `thresholds` | `90,70` | Green and yellow cutoffs in percent, used for the emojis and the badge color |
 | `minimum-coverage` | `0` | Fail when total line coverage is below this value |
 | `html-name` | `coverage.html` | HTML report file name, also used as the artifact name |
 | `github-token` | `github.token` | Token used to post the comment |

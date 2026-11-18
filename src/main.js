@@ -1,9 +1,9 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { upsertComment } from './comment.js';
+import { listChangedFiles, upsertComment } from './comment.js';
 import { renderHtml } from './html.js';
 import { parseLcov, percent, summarize, total } from './lcov.js';
-import { MARKER, renderMarkdown } from './render.js';
+import { MARKER, parseThresholds, renderMarkdown } from './render.js';
 
 const env = process.env;
 const root = process.cwd();
@@ -27,17 +27,30 @@ const commands = {
   },
 
   async comment() {
-    const body = renderMarkdown({ title: env.INPUT_TITLE, rows, baseRows, reportUrl: env.REPORT_URL });
-    if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${body}\n`);
     const event = env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')) : {};
-    if (!event.pull_request || !env.INPUT_GITHUB_TOKEN) return;
-    await upsertComment({
-      token: env.INPUT_GITHUB_TOKEN,
-      repository: env.GITHUB_REPOSITORY,
-      issueNumber: event.pull_request.number,
-      body,
-      marker: MARKER,
+    const pull = event.pull_request;
+    const repository = env.GITHUB_REPOSITORY;
+    const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
+    const sha = pull?.head.sha ?? env.GITHUB_SHA;
+    const canComment = Boolean(pull && env.INPUT_GITHUB_TOKEN);
+    const changed = canComment
+      ? await listChangedFiles({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number })
+      : null;
+    const body = renderMarkdown({
+      title: env.INPUT_TITLE,
+      rows,
+      baseRows,
+      reportUrl: env.REPORT_URL,
+      changed,
+      thresholds: parseThresholds(env.INPUT_THRESHOLDS),
+      commit: sha ? { sha, url: `${server}/${repository}/commit/${sha}` } : null,
+      run: env.GITHUB_RUN_ID
+        ? { label: `${env.GITHUB_WORKFLOW} #${env.GITHUB_RUN_NUMBER}`, url: `${server}/${repository}/actions/runs/${env.GITHUB_RUN_ID}` }
+        : null,
     });
+    if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${body}\n`);
+    if (!canComment) return;
+    await upsertComment({ fetchImpl: fetch, token: env.INPUT_GITHUB_TOKEN, repository, issueNumber: pull.number, body, marker: MARKER });
   },
 
   gate() {

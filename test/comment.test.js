@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { upsertComment } from '../src/comment.js';
+import { listChangedFiles, upsertComment } from '../src/comment.js';
 
 const marker = '<!-- m -->';
 const base = { token: 't', repository: 'o/r', issueNumber: 7, body: `${marker} new`, marker };
@@ -38,4 +38,13 @@ test('throws on API failure', async () => {
 test('throws when writing the comment fails', async () => {
   const impl = async (url, init = {}) => (init.method ? { ok: false, status: 422 } : { ok: true, json: async () => [] });
   await assert.rejects(upsertComment({ ...base, fetchImpl: impl }), /422 for POST/);
+});
+
+test('lists changed files across pages', async () => {
+  const first = Array.from({ length: 100 }, (_, i) => ({ filename: `f${i}.js` }));
+  const { impl, calls } = fakeFetch([first, [{ filename: 'last.js' }]]);
+  const files = await listChangedFiles({ token: 't', repository: 'o/r', issueNumber: 7, fetchImpl: impl });
+  assert.equal(files.size, 101);
+  assert.ok(files.has('last.js'));
+  assert.match(calls[0].url, /pulls\/7\/files\?per_page=100&page=1/);
 });

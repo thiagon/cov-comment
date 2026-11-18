@@ -35,5 +35,4 @@ jobs:
         uses: ./
         with:
           lcov-file: coverage/lcov.info
-          title: Cov Comment coverage
       - run: echo "${{ steps.cov.outputs.report-url }}"

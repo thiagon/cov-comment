@@ -35,3 +35,8 @@ test('ignores records outside a file and lcov 2 function names', () => {
   const files = parseLcov('DA:1,1\nSF:x.js\nFN:1,3,named\nFNDA:1,named\nend_of_record\n');
   assert.deepEqual([...files.get('x.js').functions], [['named', 1]]);
 });
+
+test('counts a function hit reported without its declaration', () => {
+  const files = parseLcov('SF:x.js\nFNDA:3,orphan\nend_of_record\n');
+  assert.deepEqual([...files.get('x.js').functions], [['orphan', 3]]);
+});
