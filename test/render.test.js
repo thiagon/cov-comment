@@ -166,3 +166,11 @@ test('html fills every placeholder, shows the tests summary and escapes content'
   assert.match(html, /class="miss"/);
   assert.match(html, /class="none"/);
 });
+
+test('html subtitle and tests card adapt to a single miss and to all tests passing', () => {
+  const single = summarize(parseLcov('SF:a.js\nDA:1,1\nDA:2,0\nend_of_record\n'));
+  const html = renderHtml({ title: 'T', rows: single, sources: new Map(), tests: { ...tests, tests: 3, failures: 0, errors: 0, skipped: 0 } });
+  assert.match(html, /1 miss</);
+  assert.doesNotMatch(html, /1 misses/);
+  assert.match(html, /text-\[#1a7f37\][^>]*>3<\/span>/);
+});

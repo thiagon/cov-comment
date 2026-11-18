@@ -3,14 +3,20 @@ import { formatTime } from './junit.js';
 import { isFullyCovered, percent, total } from './lcov.js';
 import { DEFAULT_THRESHOLDS, formatPercent, tier } from './render.js';
 
-const read = (name) => readFileSync(new URL(`../template/${name}`, import.meta.url), 'utf8');
-const templates = { page: read('coverage.html'), file: read('file.html'), tests: read('tests.html') };
+// one template file: the page, plus the repeatable blocks marked with <!--@name--> ... <!--@/name-->
+const source = readFileSync(new URL('../template/coverage.html', import.meta.url), 'utf8');
+const blocks = {};
+const page = source.replace(/[ \t]*<!--@(\w+)-->\n([\s\S]*?)[ \t]*<!--@\/\1-->\n/g, (_, name, body) => {
+  blocks[name] = body;
+  return '';
+});
+const templates = { page, file: blocks.file, tests: blocks.tests };
 
 const escape = (value) =>
   String(value).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 
 // single pass, so values are never re-scanned for placeholders
-const fill = (template, values) => template.replace(/\{\{(\w+)\}\}/g, (_, key) => values[key] ?? '');
+const fill = (template, values) => template.replace(/\{\{(\w+)\}\}/g, (_, key) => values[key]);
 
 const TONES = {
   brightgreen: { name: 'green', text: 'text-[#1a7f37] dark:text-[#3fb950]', bg: 'bg-[#2da44e] dark:bg-[#238636]', square: 'bg-[#2da44e] dark:bg-[#3fb950]', icon: 'check' },
