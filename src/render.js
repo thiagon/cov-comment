@@ -1,3 +1,4 @@
+import { formatTime } from './junit.js';
 import { isFullyCovered, percent, total } from './lcov.js';
 
 export const MARKER = '<!-- cov-comment -->';
@@ -75,6 +76,7 @@ export function renderMarkdown({
   commit,
   run,
   blobUrl,
+  tests = null,
   hideFullyCovered = false,
   thresholds = DEFAULT_THRESHOLDS,
   emojis = DEFAULT_EMOJIS,
@@ -97,6 +99,18 @@ export function renderMarkdown({
     metricRow('🔧 Functions', totals.functions, baseTotals?.functions, theme),
     metricRow('🌿 Branches', totals.branches, baseTotals?.branches, theme),
   );
+
+  if (tests) {
+    const passed = tests.tests - tests.failures - tests.errors - tests.skipped;
+    out.push(
+      '',
+      '#### 🧪 Tests',
+      '',
+      '| Tests | ✅ Passed | ⏭️ Skipped | ❌ Failures | 💥 Errors | ⏱️ Time |',
+      '| --- | --- | --- | --- | --- | --- |',
+      `| ${tests.tests} | ${passed} | ${tests.skipped} | ${tests.failures} | ${tests.errors} | ${formatTime(tests.time)} |`,
+    );
+  }
 
   if (changed) {
     const touched = ordered.filter((row) => changed.has(row.path));

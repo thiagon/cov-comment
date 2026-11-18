@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { join } from 'node:path';
 import { listChangedFiles, upsertComment } from './comment.js';
 import { renderHtml } from './html.js';
+import { parseJunit } from './junit.js';
 import { parseLcov, percent, summarize, total } from './lcov.js';
 import { MARKER, parseEmojis, parseThresholds, renderMarkdown } from './render.js';
 
@@ -13,6 +14,7 @@ const htmlPath = join(outDir, env.INPUT_HTML_NAME);
 const load = (path) => summarize(parseLcov(readFileSync(path, 'utf8')), root);
 const rows = load(env.INPUT_LCOV_FILE);
 const baseRows = env.INPUT_BASELINE_FILE && existsSync(env.INPUT_BASELINE_FILE) ? load(env.INPUT_BASELINE_FILE) : null;
+const tests = env.INPUT_JUNIT_FILE && existsSync(env.INPUT_JUNIT_FILE) ? parseJunit(readFileSync(env.INPUT_JUNIT_FILE, 'utf8')) : null;
 const totalLines = percent(total(rows).lines);
 
 const event = env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')) : {};
@@ -32,7 +34,7 @@ const commands = {
     const changed = await fetchChanged();
     const sources = new Map(rows.map((row) => [row.path, existsSync(row.path) ? readFileSync(row.path, 'utf8') : null]));
     mkdirSync(outDir, { recursive: true });
-    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources, changed, hideFullyCovered }));
+    writeFileSync(htmlPath, renderHtml({ title: env.INPUT_TITLE, rows, sources, changed, tests, hideFullyCovered }));
     setOutput('html-path', htmlPath);
     setOutput('total-coverage', totalLines.toFixed(2));
   },
@@ -47,6 +49,7 @@ const commands = {
       changed,
       thresholds: parseThresholds(env.INPUT_THRESHOLDS),
       emojis: parseEmojis(env.INPUT_EMOJIS),
+      tests,
       hideFullyCovered,
       blobUrl: sha ? `${server}/${repository}/blob/${sha}` : null,
       commit: sha ? { sha, url: `${server}/${repository}/commit/${sha}` } : null,

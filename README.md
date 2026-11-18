@@ -27,6 +27,7 @@ steps:
 | --- | --- | --- |
 | `lcov-file` | required | Path to the lcov file |
 | `baseline-file` | `''` | lcov file from the base branch, enables deltas |
+| `junit-file` | `''` | JUnit XML test report; adds a tests table with pass/skip/fail counts and execution time |
 | `title` | `Coverage Report` | Comment and report title |
 | `thresholds` | `90,70` | Green and yellow cutoffs in percent, used for the emojis and the badge color |
 | `minimum-coverage` | `0` | Fail when total line coverage is below this value |

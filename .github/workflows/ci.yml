@@ -31,9 +31,12 @@ jobs:
           --test-reporter-destination=stdout
           --test-reporter=lcov
           --test-reporter-destination=coverage/lcov.info
+          --test-reporter=junit
+          --test-reporter-destination=coverage/junit.xml
       - id: cov
         uses: ./
         with:
           lcov-file: coverage/lcov.info
+          junit-file: coverage/junit.xml
           hide-fully-covered: true
       - run: echo "${{ steps.cov.outputs.report-url }}"

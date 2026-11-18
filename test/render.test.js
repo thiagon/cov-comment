@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderHtml } from '../src/html.js';
+import { formatTime, parseJunit } from '../src/junit.js';
 import { parseLcov, summarize } from '../src/lcov.js';
 import { badgeUrl, formatDelta, formatRanges, MARKER, parseEmojis, parseThresholds, renderMarkdown, tier } from '../src/render.js';
 
@@ -119,4 +120,26 @@ test('html is self-contained and escapes source', () => {
   assert.match(html, /class="miss"/);
   assert.match(html, /class="none"/);
   assert.doesNotMatch(html, /<script|<link /);
+});
+
+const tests = { tests: 10, failures: 1, errors: 2, skipped: 3, time: 65.25 };
+
+test('markdown and html show the tests table with execution time', () => {
+  const body = renderMarkdown({ title: 'T', rows, baseRows: null, tests });
+  assert.match(body, /#### 🧪 Tests/);
+  assert.match(body, /\| 10 \| 4 \| 3 \| 1 \| 2 \| 1m 5\.3s \|/);
+  assert.match(renderHtml({ title: 'T', rows, sources: new Map(), tests }), /🧪 10 tests · ❌ 1 failures · 💥 2 errors · ⏭️ 3 skipped · ⏱️ 1m 5\.3s/);
+  assert.doesNotMatch(renderMarkdown({ title: 'T', rows, baseRows: null }), /Tests/);
+});
+
+test('junit parsing from root counts, testcases and invalid input', () => {
+  const root = '<testsuites name="node" tests="5" failures="1" errors="0" skipped="2" time="1.5"><testsuite tests="5"/></testsuites>';
+  assert.deepEqual(parseJunit(root), { tests: 5, failures: 1, errors: 0, skipped: 2, time: 1.5 });
+  const pytest = '<testsuites name="pytest"><testsuite name="s" tests="3"><testcase time="0.5"><failure/></testcase><testcase time="0.25"><error/></testcase><testcase><skipped/></testcase></testsuite></testsuites>';
+  assert.deepEqual(parseJunit(pytest), { tests: 3, failures: 1, errors: 1, skipped: 1, time: 0.75 });
+  const node = '<testsuites>\n<testcase name="a" time="0.1"/>\n<testcase name="b" time="0.2"/>\n<!-- skipped 0 -->\n<!-- duration_ms 216.5 -->\n</testsuites>';
+  assert.deepEqual(parseJunit(node), { tests: 2, failures: 0, errors: 0, skipped: 0, time: 0.2165 });
+  assert.deepEqual(parseJunit('<testsuites name="empty">'), { tests: 0, failures: 0, errors: 0, skipped: 0, time: 0 });
+  assert.equal(parseJunit('<html></html>'), null);
+  assert.equal(formatTime(0.256), '0.26s');
 });

@@ -1,3 +1,4 @@
+import { formatTime } from './junit.js';
 import { isFullyCovered, percent, total } from './lcov.js';
 import { badgeUrl, formatPercent, formatRanges } from './render.js';
 
@@ -37,7 +38,7 @@ summary .name { flex: 1; font-family: monospace; }
 const fileBlock = (row, sources, open) =>
   `<details${open ? ' open' : ''}><summary><span class="name">${escape(row.path)}</span><span>${formatPercent(percent(row.lines))}</span><span class="muted">${escape(formatRanges(row.missing))}</span></summary>${renderSource(row, sources.get(row.path))}</details>`;
 
-export function renderHtml({ title, rows, sources, changed = null, hideFullyCovered = false }) {
+export function renderHtml({ title, rows, sources, changed = null, tests = null, hideFullyCovered = false }) {
   const totals = total(rows);
   const summary = ['lines', 'functions', 'branches']
     .map((kind) => `<tr><td>${kind}</td><td>${formatPercent(percent(totals[kind]))}</td><td>${totals[kind].hit}/${totals[kind].found}</td></tr>`)
@@ -55,6 +56,7 @@ export function renderHtml({ title, rows, sources, changed = null, hideFullyCove
 <h1>${escape(title)}</h1>
 <p><img alt="Coverage" src="${badgeUrl(percent(totals.lines))}"></p>
 <table><thead><tr><th>Metric</th><th>Coverage</th><th>Covered</th></tr></thead><tbody>${summary}</tbody></table>
+${tests ? `<p>🧪 ${tests.tests} tests · ❌ ${tests.failures} failures · 💥 ${tests.errors} errors · ⏭️ ${tests.skipped} skipped · ⏱️ ${formatTime(tests.time)}</p>` : ''}
 ${sections.join('\n')}
 </body></html>
 `;

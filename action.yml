@@ -15,6 +15,9 @@ inputs:
   baseline-branch:
     description: Branch whose latest successful run provides the baseline
     default: main
+  junit-file:
+    description: Path to a JUnit XML test report, adds a tests and time section
+    default: ''
   title:
     description: Comment and report title
     default: Coverage Report
@@ -83,6 +86,7 @@ runs:
         INPUT_BASELINE_FILE: ${{ inputs.baseline-file || format('{0}/cov-comment-baseline/lcov.info', runner.temp) }}
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_HTML_NAME: ${{ inputs.html-name }}
+        INPUT_JUNIT_FILE: ${{ inputs.junit-file }}
         INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
     - id: upload
@@ -99,6 +103,7 @@ runs:
         INPUT_HTML_NAME: ${{ inputs.html-name }}
         INPUT_THRESHOLDS: ${{ inputs.thresholds }}
         INPUT_EMOJIS: ${{ inputs.emojis }}
+        INPUT_JUNIT_FILE: ${{ inputs.junit-file }}
         INPUT_HIDE_FULLY_COVERED: ${{ inputs.hide-fully-covered }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         REPORT_URL: ${{ steps.upload.outputs.artifact-url }}
